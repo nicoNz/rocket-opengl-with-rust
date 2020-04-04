@@ -3,10 +3,13 @@
 #[macro_use] extern crate rocket;
 extern crate gl;
 extern crate sdl2;
+extern crate nalgebra_glm as glm;
 use std::thread;
 use std::sync::mpsc::channel;
 use std::sync::Arc;
 use std::sync::Mutex;
+
+
 
 type SendSyncSender = std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Sender<u32>>>;
 
@@ -28,6 +31,7 @@ fn index(some_value: f32, sender: rocket::State<SendSyncSender>) -> &'static str
 
 pub mod shader;
 pub mod buffer;
+pub mod camera;
 //pub mod resources;
 
 
@@ -70,6 +74,8 @@ fn main() {
     let gl = gl::Gl::load_with(|s| {
         video_subsystem.gl_get_proc_address(s) as *const std::os::raw::c_void
     });
+
+    let camera = camera::Camera::from_position_and_look_at(&glm::vec3(5., 5., -10.), &glm::vec3(0., 0., 0.));
 
     unsafe {
  
