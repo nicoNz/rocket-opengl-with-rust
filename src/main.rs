@@ -9,25 +9,60 @@ use std::sync::mpsc::channel;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+enum TARGET {
+    MODEL,
+    CAMERA
+}
+
+enum PARAM {
+    X,
+    Y
+}
+
+struct Msg {
+    target: TARGET,
+    param: PARAM,
+    value: f32
+}
+
+type SendSyncSender = std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Sender<Msg>>>;
 
 
-type SendSyncSender = std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Sender<u32>>>;
-
-
-#[get("/<some_value>")]
-fn index(some_value: f32, sender: rocket::State<SendSyncSender>) -> &'static str {
-
-    if !sender.lock().unwrap().send(some_value as u32).is_ok() {
-        println!("sending the message failed" )
+fn target_to_enum(target_name: &rocket::http::RawStr)->Result<TARGET, ()> {
+    match target_name.as_str() {
+        "camera" => Ok(TARGET::CAMERA),
+        "model" => Ok(TARGET::MODEL),
+        _ => Err(())
     }
-    // let unlocked_sender = match sender.lock() {
-    //     Ok(sender) => sender.send(26),
-    //     Err(poisoned) => println!("something went wrong")
-    // };
+}
 
+fn param_to_enum(param_name: &rocket::http::RawStr)->Result<PARAM, ()> {
+    match param_name.as_str() {
+        "x" => Ok(PARAM::X),
+        "y" => Ok(PARAM::Y),
+        _ => Err(())
+    }
+}
 
+#[get("/<some_target>/<some_param>/<some_value>")]
+fn index(some_target: &rocket::http::RawStr, some_param: &rocket::http::RawStr, some_value: f32, sender: rocket::State<SendSyncSender>) -> &'static str {
+
+    match (target_to_enum(some_target) , param_to_enum(some_param)) {
+        (Ok(some_target), Ok(some_param)) => {
+            if !sender.lock().unwrap().send(Msg {
+                target : some_target,
+                param : some_param,
+                value : some_value
+            }).is_ok() {
+                println!("sending the message failed" )
+            }
+        }
+        _ => println!("some cast fail" )
+    }
     "Hello, world!"
 }
+
+
 
 pub mod shader;
 pub mod buffer;
@@ -39,7 +74,7 @@ pub mod camera;
 
 
 fn main() {
-    let (sender, receiver) = channel::<u32>();
+    let (sender, receiver) = channel::<Msg>();
 
     // First thread owns sender
     // thread::spawn(move || {
@@ -75,7 +110,7 @@ fn main() {
         video_subsystem.gl_get_proc_address(s) as *const std::os::raw::c_void
     });
 
-    let camera = camera::Camera::from_position_and_look_at(&glm::vec3(5., 5., -10.), &glm::vec3(0., 0., 0.));
+    let mut camera = camera::Camera::from_position_and_look_at(&glm::vec3(-6.0,0.0, 5.0), &glm::vec3(0., 0., 0.));
 
     unsafe {
  
@@ -95,6 +130,7 @@ fn main() {
     let mut shader_program = shader::Program::from_shaders(&gl, &[vert_shader, frag_shader]).unwrap();
 
     shader_program.set_used();
+    shader_program.u_vp_value = camera.get_view_projection();
 
 
     //positions
@@ -123,13 +159,24 @@ fn main() {
     let mut event_pump = sdl.event_pump().unwrap();
     'main: loop {
         for event in receiver.try_iter() {
-            println!("{}", event);
-            shader_program.set_offset(event as f32);
+            match event.target {
+                TARGET::CAMERA => {
+                    match event.param {
+                        PARAM::X => camera.set_position(&glm::vec3(event.value, 0., 5.)),
+                        PARAM::Y => camera.set_position(&glm::vec3(0., event.value, 5.))
+                    };
+                    shader_program.u_vp_value = camera.get_view_projection();
+                }
+                TARGET::MODEL => {
+                        shader_program.set_offset(event.value);
+                    
+                }
+            }
         }
         for event in event_pump.poll_iter() {
             match event {
                 sdl2::event::Event::Quit { .. } => break 'main,
-                sdl2::event::Event::MouseMotion {x, y, .. } => {
+                sdl2::event::Event::MouseMotion {x, .. } => {
                     let v = x as f32;
                     shader_program.set_offset(v);
 

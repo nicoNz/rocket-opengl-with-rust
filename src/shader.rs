@@ -6,7 +6,9 @@ pub struct Program {
     gl: gl::Gl,
     id: gl::types::GLuint,
     u_offset : gl::types::GLint,
-    u_offset_value : f32
+    u_offset_value : f32,
+    u_vp : gl::types::GLint,
+    pub u_vp_value : glm::Mat4
 }
 
 impl Program {
@@ -56,8 +58,11 @@ impl Program {
 
 
        
-        let loc =  unsafe{ 
-            gl.GetUniformLocation(program_id, CString::new("offset").unwrap().into_raw()) 
+        let u_offset_loc =  unsafe{ 
+            gl.GetUniformLocation(program_id, CString::new("offset").unwrap().into_raw())
+        };
+        let u_vp_loc =  unsafe{ 
+            gl.GetUniformLocation(program_id, CString::new("vp").unwrap().into_raw())
         };
         
 
@@ -66,8 +71,10 @@ impl Program {
         Ok(Program { 
             gl : gl.clone(),
             id: program_id,
-            u_offset : loc,
-            u_offset_value : 0.0
+            u_offset : u_offset_loc,
+            u_offset_value : 0.0,
+            u_vp : u_vp_loc,
+            u_vp_value : glm::translate(&glm::identity(), &glm::vec3(0.5, 0., 0.)) 
          })
     }
 
@@ -78,6 +85,7 @@ impl Program {
     pub fn set_used(&self) {
         unsafe {
             self.gl.Uniform1f(self.u_offset, self.u_offset_value);
+            self.gl.UniformMatrix4fv(self.u_vp, 1, gl::FALSE, self.u_vp_value.as_ptr());
             self.gl.UseProgram(self.id);
         }
     }

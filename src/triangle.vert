@@ -7,8 +7,11 @@ out VS_OUTPUT {
     vec3 Color;
 } OUT;
 
+uniform mat4 vp;
+
+
 void main()
 {
-    gl_Position = vec4(Position, 1.0);
+    gl_Position =  vp * vec4(Position, 1.0);
     OUT.Color = Color;
 }
