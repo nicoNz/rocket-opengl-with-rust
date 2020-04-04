@@ -4,9 +4,25 @@
 extern crate gl;
 extern crate sdl2;
 use std::thread;
+use std::sync::mpsc::channel;
+use std::sync::Arc;
+use std::sync::Mutex;
 
-#[get("/")]
-fn index() -> &'static str {
+type SendSyncSender = std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Sender<u32>>>;
+
+
+#[get("/<some_value>")]
+fn index(some_value: f32, sender: rocket::State<SendSyncSender>) -> &'static str {
+
+    if !sender.lock().unwrap().send(some_value as u32).is_ok() {
+        println!("sending the message failed" )
+    }
+    // let unlocked_sender = match sender.lock() {
+    //     Ok(sender) => sender.send(26),
+    //     Err(poisoned) => println!("something went wrong")
+    // };
+
+
     "Hello, world!"
 }
 
@@ -14,10 +30,26 @@ pub mod shader;
 pub mod buffer;
 //pub mod resources;
 
+
+
+
+
 fn main() {
+    let (sender, receiver) = channel::<u32>();
+
+    // First thread owns sender
+    // thread::spawn(move || {
+    //     sender.send(1).unwrap();
+    // });
+    let thread_safe_sender = Arc::new(Mutex::new(sender));
+
     thread::spawn(|| {
-        rocket::ignite().mount("/", routes![index]).launch();
+        rocket::ignite().manage(thread_safe_sender).mount("/", routes![index]).launch();
     });
+    //let res = receiver.recv().unwrap();
+    //receiver.try_iter()
+    //println!("{}", res);
+
     let sdl = sdl2::init().unwrap();
     let video_subsystem = sdl.video().unwrap();
 
@@ -84,6 +116,10 @@ fn main() {
 
     let mut event_pump = sdl.event_pump().unwrap();
     'main: loop {
+        for event in receiver.try_iter() {
+            println!("{}", event);
+            shader_program.set_offset(event as f32);
+        }
         for event in event_pump.poll_iter() {
             match event {
                 sdl2::event::Event::Quit { .. } => break 'main,
