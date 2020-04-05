@@ -162,8 +162,8 @@ fn main() {
             match event.target {
                 TARGET::CAMERA => {
                     match event.param {
-                        PARAM::X => camera.set_position(&glm::vec3(event.value, 0., 5.)),
-                        PARAM::Y => camera.set_position(&glm::vec3(0., event.value, 5.))
+                        PARAM::X => camera.set_position_x(event.value),
+                        PARAM::Y => camera.set_position_y(event.value)
                     };
                     shader_program.u_vp_value = camera.get_view_projection();
                 }
@@ -180,7 +180,6 @@ fn main() {
                     let v = x as f32;
                     shader_program.set_offset(v);
 
-                    println!("x : {}, y : {}", x, v)
                        
                 },
                 _ => {}
