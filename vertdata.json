@@ -1,0 +1,23 @@
+{
+    "buffers" : {
+        "positions" : {
+            "data" : [
+                -0.5, -0.5, 0.0, 
+                0.5, -0.5, 0.0, 
+                0.0, 0.5, 0.0
+            ],
+            "perVertex" : 3,
+            "type" : "float32"
+        },
+        "colors" : {
+            "data" : [
+                0.0, 1.0, 0.0, 
+                1.0, 0.0, 0.0, 
+                0.0, 0.0, 1.0
+            ],
+            "perVertex" : 3,
+            "type" : "float32"
+        }
+    },
+    "drawMode" : "triangles"
+}

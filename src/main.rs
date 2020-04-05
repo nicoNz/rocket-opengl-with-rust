@@ -4,10 +4,13 @@
 extern crate gl;
 extern crate sdl2;
 extern crate nalgebra_glm as glm;
+extern crate json;
 use std::thread;
 use std::sync::mpsc::channel;
 use std::sync::Arc;
 use std::sync::Mutex;
+
+
 
 enum TARGET {
     MODEL,
@@ -67,13 +70,19 @@ fn index(some_target: &rocket::http::RawStr, some_param: &rocket::http::RawStr, 
 pub mod shader;
 pub mod buffer;
 pub mod camera;
+pub mod json_parser;
 //pub mod resources;
 
 
 
 
 
+
 fn main() {
+
+
+    json_parser::get_array_data();
+
     let (sender, receiver) = channel::<Msg>();
 
     // First thread owns sender
@@ -179,8 +188,6 @@ fn main() {
                 sdl2::event::Event::MouseMotion {x, .. } => {
                     let v = x as f32;
                     shader_program.set_offset(v);
-
-                       
                 },
                 _ => {}
             }
