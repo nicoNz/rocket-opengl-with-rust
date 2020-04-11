@@ -1,135 +1,44 @@
 #![feature(proc_macro_hygiene, decl_macro)]
 #![feature(vec_into_raw_parts)]
-
-
 #[macro_use] extern crate rocket;
+
 extern crate gl;
 extern crate sdl2;
 extern crate nalgebra_glm as glm;
 extern crate json;
-use std::thread;
-use std::sync::mpsc::channel;
-use std::sync::Arc;
-use std::sync::Mutex;
 
-enum TARGET {
-    MODEL,
-    CAMERA
-}
-
-enum PARAM {
-    X,
-    Y
-}
-
-struct Msg {
-    target: TARGET,
-    param: PARAM,
-    value: f32
-}
-
-type SendSyncSender = std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Sender<Msg>>>;
-
-
-fn target_to_enum(target_name: &rocket::http::RawStr)->Result<TARGET, ()> {
-    match target_name.as_str() {
-        "camera" => Ok(TARGET::CAMERA),
-        "model" => Ok(TARGET::MODEL),
-        _ => Err(())
-    }
-}
-
-fn param_to_enum(param_name: &rocket::http::RawStr)->Result<PARAM, ()> {
-    match param_name.as_str() {
-        "x" => Ok(PARAM::X),
-        "y" => Ok(PARAM::Y),
-        _ => Err(())
-    }
-}
-
-#[get("/<some_target>/<some_param>/<some_value>")]
-fn index(some_target: &rocket::http::RawStr, some_param: &rocket::http::RawStr, some_value: f32, sender: rocket::State<SendSyncSender>) -> &'static str {
-
-    match (target_to_enum(some_target) , param_to_enum(some_param)) {
-        (Ok(some_target), Ok(some_param)) => {
-            if !sender.lock().unwrap().send(Msg {
-                target : some_target,
-                param : some_param,
-                value : some_value
-            }).is_ok() {
-                println!("sending the message failed" )
-            }
-        }
-        _ => println!("some cast fail" )
-    }
-    "Hello, world!"
-}
-
-
-// pub mod 3D::{
-//     vbo, 
-//     vao
-// };
-//pub mod 3D::vbo;
 pub mod render;
 pub mod camera;
 pub mod json_parser;
-//pub mod resources;
+pub mod network;
+pub mod window_app;
 
-use render::vbo::VboF32;
 use render::mesh::Mesh;
 use render::shader::{
     Shader,
     Program
 };
 
+use network::http_receiver::{
+    launch_http,
+    PARAM,
+    TARGET
+};
+use window_app::init;
 
 fn main() {
 
-    
-    let (sender, receiver) = channel::<Msg>();
+    let receiver = &launch_http();
 
-    let thread_safe_sender = Arc::new(Mutex::new(sender));
-
-    thread::spawn(|| {
-        rocket::ignite().manage(thread_safe_sender).mount("/", routes![index]).launch();
-    });
-
-    let sdl = sdl2::init().unwrap();
-    let video_subsystem = sdl.video().unwrap();
-
-    let gl_attr = video_subsystem.gl_attr();
-
-    gl_attr.set_context_profile(sdl2::video::GLProfile::Core);
-    gl_attr.set_context_version(4, 1);
-
-    let window = video_subsystem
-        .window("Game", 900, 700)
-        .opengl()
-        .resizable()
-        .build()
-        .unwrap();
-
-    let _gl_context = window.gl_create_context().unwrap();
-
-    let gl = gl::Gl::load_with(|s| {
-        video_subsystem.gl_get_proc_address(s) as *const std::os::raw::c_void
-    });
+   let (gl, sdl, window, _gl_context) = init();
 
     let mut camera = camera::Camera::from_position_and_look_at(&glm::vec3(-6.0,0.0, 5.0), &glm::vec3(0., 0., 0.));
 
-    unsafe {
- 
-        gl.Viewport(0, 0, 900, 700);
-        gl.ClearColor(0.3, 0.3, 0.5, 1.0);
-    }
 
     use std::ffi::CString;
     let vert_shader =
-        Shader::from_vert_source(
-            &gl ,
-            &CString::new(include_str!("triangle.vert")).unwrap()
-        ).unwrap();
+        Shader::from_vert_source(&gl ,&CString::new(include_str!("triangle.vert")).unwrap())
+            .unwrap();
 
     let frag_shader =
         Shader::from_frag_source(&gl, &CString::new(include_str!("triangle.frag")).unwrap())
@@ -148,6 +57,7 @@ fn main() {
             panic!("fail to get buffers");
         }
     };
+
 
     let mut event_pump = sdl.event_pump().unwrap();
     'main: loop {
