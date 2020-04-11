@@ -1,6 +1,10 @@
+
+
+
 use gl;
 use std;
 use std::ffi::{CStr, CString};
+
 
 pub struct Program {
     gl: gl::Gl,
@@ -12,6 +16,8 @@ pub struct Program {
 }
 
 impl Program {
+
+
     pub fn from_shaders(gl: &gl::Gl, shaders: &[Shader]) -> Result<Program, String> {
         let program_id = unsafe { gl.CreateProgram() };
 
@@ -55,8 +61,6 @@ impl Program {
                 gl.DetachShader(program_id, shader.id());
             }
         }
-
-
        
         let u_offset_loc =  unsafe{ 
             gl.GetUniformLocation(program_id, CString::new("offset").unwrap().into_raw())
@@ -64,9 +68,8 @@ impl Program {
         let u_vp_loc =  unsafe{ 
             gl.GetUniformLocation(program_id, CString::new("vp").unwrap().into_raw())
         };
+
         
-
-
 
         Ok(Program { 
             gl : gl.clone(),
@@ -75,7 +78,24 @@ impl Program {
             u_offset_value : 0.0,
             u_vp : u_vp_loc,
             u_vp_value : glm::translate(&glm::identity(), &glm::vec3(0.5, 0., 0.)) 
-         })
+        })
+    }
+
+
+    pub fn get_location(&self, attribute_name: &String) -> i32 {
+        let mut string = attribute_name.clone();
+        string.push('\0');
+
+        match CStr::from_bytes_with_nul(&string.into_bytes()) {
+            Ok(cstr) => {
+                unsafe {
+                    self.gl.GetAttribLocation(self.id, cstr.as_ptr())
+                }
+            }
+            _ => {
+                return 0;
+            }
+        }
     }
 
     pub fn id(&self) -> gl::types::GLuint {

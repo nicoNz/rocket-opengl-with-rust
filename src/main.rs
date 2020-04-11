@@ -1,4 +1,6 @@
 #![feature(proc_macro_hygiene, decl_macro)]
+#![feature(vec_into_raw_parts)]
+
 
 #[macro_use] extern crate rocket;
 extern crate gl;
@@ -9,8 +11,6 @@ use std::thread;
 use std::sync::mpsc::channel;
 use std::sync::Arc;
 use std::sync::Mutex;
-
-
 
 enum TARGET {
     MODEL,
@@ -66,37 +66,34 @@ fn index(some_target: &rocket::http::RawStr, some_param: &rocket::http::RawStr, 
 }
 
 
-
-pub mod shader;
-pub mod buffer;
+// pub mod 3D::{
+//     vbo, 
+//     vao
+// };
+//pub mod 3D::vbo;
+pub mod render;
 pub mod camera;
 pub mod json_parser;
 //pub mod resources;
 
-
-
-
+use render::vbo::VboF32;
+use render::mesh::Mesh;
+use render::shader::{
+    Shader,
+    Program
+};
 
 
 fn main() {
 
-
-    json_parser::get_array_data();
-
+    
     let (sender, receiver) = channel::<Msg>();
 
-    // First thread owns sender
-    // thread::spawn(move || {
-    //     sender.send(1).unwrap();
-    // });
     let thread_safe_sender = Arc::new(Mutex::new(sender));
 
     thread::spawn(|| {
         rocket::ignite().manage(thread_safe_sender).mount("/", routes![index]).launch();
     });
-    //let res = receiver.recv().unwrap();
-    //receiver.try_iter()
-    //println!("{}", res);
 
     let sdl = sdl2::init().unwrap();
     let video_subsystem = sdl.video().unwrap();
@@ -129,41 +126,28 @@ fn main() {
 
     use std::ffi::CString;
     let vert_shader =
-        shader::Shader::from_vert_source(&gl ,&CString::new(include_str!("triangle.vert")).unwrap())
-            .unwrap();
+        Shader::from_vert_source(
+            &gl ,
+            &CString::new(include_str!("triangle.vert")).unwrap()
+        ).unwrap();
 
     let frag_shader =
-        shader::Shader::from_frag_source(&gl, &CString::new(include_str!("triangle.frag")).unwrap())
+        Shader::from_frag_source(&gl, &CString::new(include_str!("triangle.frag")).unwrap())
             .unwrap();
 
-    let mut shader_program = shader::Program::from_shaders(&gl, &[vert_shader, frag_shader]).unwrap();
+    let mut shader_program = Program::from_shaders(&gl, &[vert_shader, frag_shader]).unwrap();
 
     shader_program.set_used();
     shader_program.u_vp_value = camera.get_view_projection();
 
-
-    //positions
-    let positions: Vec<f32> = vec![
-        -0.5, -0.5, 0.0, 
-        0.5, -0.5, 0.0, 
-        0.0, 0.5, 0.0
-    ];
-    let vbo_pos = buffer::Vbo::from_vector(&gl, &positions);
-    
-    //colors
-    let colors: Vec<f32> = vec![
-        0.0, 1.0, 0.0, 
-        1.0, 0.0, 0.0, 
-        0.0, 0.0, 1.0
-    ];
-    let vbo_col = buffer::Vbo::from_vector(&gl, &colors);
-        
-    let vao = buffer::Vao::new(&gl);
-    vao.attach_vbo(&vbo_pos, 0);
-    vao.attach_vbo(&vbo_col, 1);
-
-
-
+    let mut mesh = match json_parser::get_array_data() {
+        Ok(ref descr) => {
+            Mesh::from_description(&gl, descr, Some(shader_program))
+        },
+        Err(e) => {
+            panic!("fail to get buffers");
+        }
+    };
 
     let mut event_pump = sdl.event_pump().unwrap();
     'main: loop {
@@ -174,11 +158,20 @@ fn main() {
                         PARAM::X => camera.set_position_x(event.value),
                         PARAM::Y => camera.set_position_y(event.value)
                     };
-                    shader_program.u_vp_value = camera.get_view_projection();
+                    match mesh.program {
+                        Some(ref mut program) => {
+                            program.u_vp_value = camera.get_view_projection();
+                        }
+                        None => println!("no bound material")
+                    }
                 }
                 TARGET::MODEL => {
-                        shader_program.set_offset(event.value);
-                    
+                    match mesh.program {
+                        Some(ref mut program) => {
+                            program.set_offset(event.value);
+                        }
+                        None => println!("no bound material")
+                    }
                 }
             }
         }
@@ -187,7 +180,12 @@ fn main() {
                 sdl2::event::Event::Quit { .. } => break 'main,
                 sdl2::event::Event::MouseMotion {x, .. } => {
                     let v = x as f32;
-                    shader_program.set_offset(v);
+                    match mesh.program {
+                        Some(ref mut program) => {
+                            program.set_offset(v);
+                        }
+                        None => println!("no bound material")
+                    }
                 },
                 _ => {}
             }
@@ -196,15 +194,8 @@ fn main() {
         unsafe {
             gl.Clear(gl::COLOR_BUFFER_BIT);
         }
-        shader_program.set_used();
-        unsafe {
-            vao.bind();
-            gl.DrawArrays(
-                gl::TRIANGLES, // mode
-                0,             // starting index in the enabled arrays
-                3,             // number of indices to be rendered
-            );
-        }
+        
+        mesh.draw();
 
         window.gl_swap_window();
     }

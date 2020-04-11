@@ -1,11 +1,11 @@
+use crate::render::mesh::{MeshDescription, BufferDescription};
+use crate::render::vbo::AllowedBufferType;
 use std::fs;
 
 use std::collections::HashMap;
 use gl;
-
-pub struct MakeVbosFromJsonDescriptionError {
-    reason : MakeVbosFromJsonDescriptionErrorReason
-}
+use std::clone::Clone;
+use std::marker::Copy;
 
 enum MakeVbosFromJsonDescriptionErrorReason {
     FailToGetVertexCount,
@@ -14,6 +14,43 @@ enum MakeVbosFromJsonDescriptionErrorReason {
     VboTypeNotValid,
     NoBufferData
 }
+
+pub struct MakeVbosFromJsonDescriptionError {
+    reason : Option<MakeVbosFromJsonDescriptionErrorReason>,
+    parent : Option<Box<MakeVbosFromJsonDescriptionError>>
+}
+
+impl MakeVbosFromJsonDescriptionError {
+    fn new() -> MakeVbosFromJsonDescriptionError {
+        MakeVbosFromJsonDescriptionError {
+            reason : None,
+            parent : None
+        }
+    }
+    fn from_reason(reason: MakeVbosFromJsonDescriptionErrorReason) -> MakeVbosFromJsonDescriptionError {
+        MakeVbosFromJsonDescriptionError {
+            reason : Some(reason),
+            parent : None
+        }
+    }
+    fn from_parent(parent: MakeVbosFromJsonDescriptionError) -> MakeVbosFromJsonDescriptionError {
+        MakeVbosFromJsonDescriptionError {
+            reason : None,
+            parent : Some(Box::<MakeVbosFromJsonDescriptionError>::new(parent))
+        }
+    }
+    fn from(
+        reason: MakeVbosFromJsonDescriptionErrorReason,
+        parent: MakeVbosFromJsonDescriptionError
+    ) -> MakeVbosFromJsonDescriptionError {
+        MakeVbosFromJsonDescriptionError {
+            reason : Some(reason),
+            parent : Some(Box::<MakeVbosFromJsonDescriptionError>::new(parent))
+        }
+    }
+}
+
+
 
 enum AllowedType{
     Float32,
@@ -25,47 +62,44 @@ enum AllowedDataType {
     Short
 }
 
-enum AllowedVboType {
+pub enum AllowedVboType {
     Float32(VboDescription<f32>),
     Short(VboDescription<u8>)
 }
 
-struct VboDescription<T> {
-    attribute_buffer_name : String,
-    attribute_buffer_data : Vec<T>,
-    per_vertex : u8,
-    gl_type : gl::types::GLenum
+pub struct VboDescription<T> {
+    pub attribute_buffer_name : String,
+    pub attribute_buffer_data : Vec<T>,
+    pub per_vertex : u8,
+    pub gl_type : gl::types::GLenum
 }
 
 
 pub struct VaoDescription{
-    vbos: HashMap::<String, AllowedVboType>,
-    draw_mode: gl::types::GLenum
+    pub vbos: HashMap::<String, AllowedVboType>,
+    pub draw_mode: gl::types::GLenum
 }
 
 fn get_per_vertex(content: &json::JsonValue) -> Result<u8, MakeVbosFromJsonDescriptionError>  {
-    content["perVertex"].as_u8().ok_or(MakeVbosFromJsonDescriptionError{
-        reason : MakeVbosFromJsonDescriptionErrorReason::FailToGetVertexCount
-    }).and_then(|v|{
+    content["perVertex"].as_u8()
+    .ok_or(MakeVbosFromJsonDescriptionError::from_reason(MakeVbosFromJsonDescriptionErrorReason::FailToGetVertexCount))
+    .and_then(|v|{
         if v < 1 || v > 4 {
-            return Err(MakeVbosFromJsonDescriptionError {
-                reason : MakeVbosFromJsonDescriptionErrorReason::VertexCountOutOfRange
-            })
+            return Err(MakeVbosFromJsonDescriptionError::from_reason(MakeVbosFromJsonDescriptionErrorReason::VertexCountOutOfRange))
         };
         Ok(v)
     })
 }
+
 fn get_data_type(content: &json::JsonValue) -> Result<gl::types::GLuint, MakeVbosFromJsonDescriptionError> {
-    content["type"].as_str().ok_or(MakeVbosFromJsonDescriptionError{
-        reason : MakeVbosFromJsonDescriptionErrorReason::FailToGetVertexCount
-    }).and_then(|v|{
+    content["type"].as_str()
+    .ok_or(MakeVbosFromJsonDescriptionError::from_reason(MakeVbosFromJsonDescriptionErrorReason::FailToGetVertexCount))
+    .and_then(|v|{
         match v {
             "float32" => Ok(gl::FLOAT),
             "short" =>  Ok(gl::SHORT),
             _ => Err(
-                MakeVbosFromJsonDescriptionError {
-                    reason : MakeVbosFromJsonDescriptionErrorReason::VboTypeNotValid
-                }
+                MakeVbosFromJsonDescriptionError::from_reason(MakeVbosFromJsonDescriptionErrorReason::VboTypeNotValid)
             )
         }
     })
@@ -83,9 +117,7 @@ fn get_float_buffer_data(content: &json::JsonValue) -> Result<Vec::<f32>, MakeVb
     }
     
     if array_data.is_empty() {
-        return Err(MakeVbosFromJsonDescriptionError {
-            reason : MakeVbosFromJsonDescriptionErrorReason::NoBufferData
-        })
+        return Err(MakeVbosFromJsonDescriptionError::from_reason(MakeVbosFromJsonDescriptionErrorReason::NoBufferData))
     };
 
     Ok(array_data)
@@ -101,9 +133,7 @@ fn get_short_buffer_data(content: &json::JsonValue) -> Result<Vec::<u8>, MakeVbo
     }
     
     if array_data.is_empty() {
-        return Err(MakeVbosFromJsonDescriptionError {
-            reason : MakeVbosFromJsonDescriptionErrorReason::NoBufferData
-        })
+        return Err(MakeVbosFromJsonDescriptionError::from_reason(MakeVbosFromJsonDescriptionErrorReason::NoBufferData))
     };
 
     Ok(array_data)
@@ -114,21 +144,14 @@ fn get_data(
     buffer_name: &str,
     per_vertex: u8, 
     data_type: gl::types::GLuint
-) -> Result<AllowedVboType, MakeVbosFromJsonDescriptionError> {
+) -> Result<AllowedBufferType, MakeVbosFromJsonDescriptionError> {
 
     match data_type {
         gl::FLOAT => {
             get_float_buffer_data(content)
             .and_then(|array_data| {
                 return Ok(
-                    AllowedVboType::Float32 ( 
-                        VboDescription {
-                            attribute_buffer_name : buffer_name.to_string(),
-                            attribute_buffer_data : array_data,
-                            per_vertex : per_vertex,
-                            gl_type : data_type
-                        }
-                    )
+                    AllowedBufferType::F32 ( array_data )
                 )
             }) 
         },
@@ -136,59 +159,61 @@ fn get_data(
             get_short_buffer_data(content)
             .and_then(|array_data| {
                 return Ok(
-                    AllowedVboType::Short (
-                        VboDescription {
-                            attribute_buffer_name : buffer_name.to_string(),
-                            attribute_buffer_data : array_data,
-                            per_vertex : per_vertex,
-                            gl_type : data_type
-                        }
-                    )
+                    AllowedBufferType::SHORT( array_data )
                 )
             })
         }
         _ =>  {           
-            return Err(
-                MakeVbosFromJsonDescriptionError {
-                    reason : {
-                        MakeVbosFromJsonDescriptionErrorReason::FailToGetVertexCount
-                    }
-                }
-            )
+            return Err(MakeVbosFromJsonDescriptionError::from_reason(MakeVbosFromJsonDescriptionErrorReason::FailToGetVertexCount))
         }
     }
 
 }
 
-fn make_vbo_description(buffer_name: &str, content: &json::JsonValue) -> Result<AllowedVboType, MakeVbosFromJsonDescriptionError> {
+fn make_vbo_description(buffer_name: &str, content: &json::JsonValue) -> Result<(AllowedBufferType, usize), MakeVbosFromJsonDescriptionError> {
 
 
 
     if let Ok(per_vertex) = get_per_vertex(content) {
         if let Ok(data_type) = get_data_type(content) {
             if let Ok(data) = get_data(content, buffer_name, per_vertex, data_type) {
-                return Ok(data)
+                return Ok((data, per_vertex as usize))
             } 
         }
     }
 
-    return Err(
-        MakeVbosFromJsonDescriptionError {
-            reason : MakeVbosFromJsonDescriptionErrorReason::VboTypeNotValid
-        }
-    )
+    return Err(MakeVbosFromJsonDescriptionError::from_reason(MakeVbosFromJsonDescriptionErrorReason::VboTypeNotValid))
 }
 
 //type MakeBufferResult = Result<HashMap::<String, AllowedVboType>, MakeVbosFromJsonDescriptionError>;
 
-fn make_vao_description(v : &json::JsonValue) -> Result<VaoDescription, MakeVbosFromJsonDescriptionError>{
+fn make_vao_description(v : &json::JsonValue) -> Result<MeshDescription, MakeVbosFromJsonDescriptionError>{
     
-    let mut vbos: HashMap::<String, AllowedVboType> = HashMap::new();
+    let mut vbos: Vec::<BufferDescription> = Vec::new();
     
 
     for (buffer_name, buffer_content) in v["buffers"].entries() {
         match make_vbo_description(buffer_name, buffer_content) {
-            Ok(vbo_description) => vbos.insert(buffer_name.to_string(), vbo_description),
+            Ok((buffer, per_vertex)) => vbos.push(
+                match buffer {
+                    AllowedBufferType::F32(buffer) =>{
+                        BufferDescription {
+                            attribute_name : buffer_name.to_string(),
+                            data : AllowedBufferType::F32(buffer),
+                            n_elements : 3,
+                            per_vertex : per_vertex as i32,
+                        }
+                    },
+                    AllowedBufferType::SHORT(buffer) =>{
+                        BufferDescription {
+                            attribute_name : buffer_name.to_string(),
+                            data : AllowedBufferType::SHORT(buffer),
+                            n_elements : 3,
+                            per_vertex : per_vertex as i32,
+                        }
+                    }
+                }
+            ),
             Err(e) => {
                 return Err(e)
             }
@@ -201,14 +226,14 @@ fn make_vao_description(v : &json::JsonValue) -> Result<VaoDescription, MakeVbos
         _ => gl::TRIANGLES,
     };
 
-    Ok(VaoDescription {
-        vbos,
+    Ok(MeshDescription {
+        buffers : vbos,
         draw_mode
     })
 }
 
 
-pub fn get_array_data() -> Result<VaoDescription, MakeVbosFromJsonDescriptionError> {
+pub fn get_array_data() -> Result<MeshDescription, MakeVbosFromJsonDescriptionError> {
 
 
     if let Ok(f) = fs::read_to_string("vertdata.json").unwrap().parse::<String>() {
@@ -216,22 +241,10 @@ pub fn get_array_data() -> Result<VaoDescription, MakeVbosFromJsonDescriptionErr
         if let Ok(json) = json::parse(&f) {
             return make_vao_description(&json);
         } else {
-            return Err(
-                MakeVbosFromJsonDescriptionError {
-                    reason : {
-                        MakeVbosFromJsonDescriptionErrorReason::FailToGetVertexCount
-                    }
-                }
-            )
+            return Err(MakeVbosFromJsonDescriptionError::from_reason(MakeVbosFromJsonDescriptionErrorReason::FailToGetVertexCount))
         }
     }
-    Err(
-        MakeVbosFromJsonDescriptionError {
-            reason : {
-                MakeVbosFromJsonDescriptionErrorReason::FailToGetVertexCount
-            }
-        }
-    )
+    Err(MakeVbosFromJsonDescriptionError::from_reason(MakeVbosFromJsonDescriptionErrorReason::FailToGetVertexCount))
 }
 
 
