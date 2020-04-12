@@ -24,13 +24,37 @@ use network::http_receiver::{
     PARAM,
     TARGET
 };
-use window_app::init;
+use window_app::{
+    WindowAppRunner,
+    WindowApp
+};
+
+
+struct App {
+    my_value: i32
+}
+
+impl WindowApp for App {
+    fn draw(&self) {
+        println!("my alue is {}", self.my_value);
+    }
+}
 
 fn main() {
 
     let receiver = &launch_http();
 
-   let (gl, sdl, window, _gl_context) = init();
+    let app = App {
+        my_value : 45
+    };
+
+   let window_app = WindowAppRunner::new(&app);
+   let gl = &window_app.gl;
+   let sdl = &window_app.sdl;
+   let window = &window_app.window;
+
+   window_app.draw();
+
 
     let mut camera = camera::Camera::from_position_and_look_at(&glm::vec3(-6.0,0.0, 5.0), &glm::vec3(0., 0., 0.));
 
@@ -61,6 +85,8 @@ fn main() {
 
     let mut event_pump = sdl.event_pump().unwrap();
     'main: loop {
+
+
         for event in receiver.try_iter() {
             match event.target {
                 TARGET::CAMERA => {
