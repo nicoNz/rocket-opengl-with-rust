@@ -50,12 +50,12 @@ pub struct Mesh {
     draw_mode: gl::types::GLuint, //gl
     //transform : Transform,
     n_verts: i32,
-    pub program: Option<Program>
+    pub program: Option<Box<Program>>
 } 
 
 impl Mesh {
 
-    pub fn new(gl: &gl::Gl, program: Option<Program>) -> Self {
+    pub fn new(gl: &gl::Gl, program: Option<Box<Program>>) -> Self {
         let mut buffers: Vec<VboWithAssiciatedLoc> = Vec::new();
         Self {
             gl : gl.clone(),
@@ -67,7 +67,7 @@ impl Mesh {
         }
     }
 
-    pub fn from_description(gl: &gl::Gl, description: &MeshDescription, program: Option<Program>) -> Self {
+    pub fn from_description(gl: &gl::Gl, description: &MeshDescription, program: Option<Box<Program>>) -> Self {
         //let vbos: Vec<VboWithAssiciatedLoc> = Vec::new();
         let mut this = Self::new(gl, program);
 

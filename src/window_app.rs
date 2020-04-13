@@ -1,19 +1,22 @@
 pub trait WindowApp {
+    fn update(&mut self);
     fn draw(&self);
+    fn on_window_event(&mut self, event: &sdl2::event::Event);
 }
 
-pub struct WindowAppRunner<'a>{
+pub struct WindowAppRunner{
     pub gl: gl::Gl,
     pub sdl: sdl2::Sdl,
     pub window: sdl2::video::Window,
     _gl_context: sdl2::video::GLContext,
     pub v: u32,
     //on_draw: Option<dyn Fn(&Self) + 'static>
-    pub window_app: Option<&'a (dyn WindowApp)>
+    pub window_app: Box<(dyn WindowApp)>
 }
 
-impl<'a> WindowAppRunner<'a> {
-    pub fn new(window_app: &'a dyn WindowApp) -> WindowAppRunner<'a> {
+impl WindowAppRunner {
+    pub fn new<F>(init: F) -> WindowAppRunner
+    where F : FnOnce(&gl::Gl) -> Box<dyn WindowApp>  {
         let sdl = sdl2::init().unwrap();
         let video_subsystem = sdl.video().unwrap();
         
@@ -40,6 +43,7 @@ impl<'a> WindowAppRunner<'a> {
             gl.ClearColor(0.3, 0.3, 0.5, 1.0);
         }
     
+        let window_app = init(&gl);
         
         Self {
             gl,
@@ -47,17 +51,37 @@ impl<'a> WindowAppRunner<'a> {
             window,
             _gl_context,
             v: 4,
-            window_app : Some(window_app)
+            window_app
         }
     }
     pub fn draw(&self) {
-        match self.window_app {
-            Some( window_app ) => {
-                window_app.draw();
-            },
-            None => {
-                println!("err");
+        self.window_app.draw();
+            
+    }
+
+
+
+    pub fn run_loop(&mut self) {
+        let mut event_pump = self.sdl.event_pump().unwrap();
+        'main: loop {
+
+
+            for event in event_pump.poll_iter() {
+                match event {
+                    sdl2::event::Event::Quit { .. } => break 'main,
+                    _ => self.window_app.on_window_event(&event)
+            
+                }
             }
+
+            self.window_app.update();
+            self.window_app.draw();
+
+
+
+            self.window.gl_swap_window();
+
         }
     }
+    
 }
