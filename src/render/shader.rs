@@ -1,6 +1,7 @@
 
 
 
+use std::fmt::Display;
 use gl;
 use std;
 use std::ffi::{CStr, CString};
@@ -9,46 +10,100 @@ use nalgebra_glm;
 pub struct Program {
     gl: gl::Gl,
     id: gl::types::GLuint,
-    uniforms: std::collections::HashMap<UniformKey, UniformRole>,
-    u_offset : gl::types::GLint,
-    u_offset_value : f32,
-    u_vp : gl::types::GLint,
-    pub u_vp_value : glm::Mat4,
-    
+    uniforms: std::collections::HashMap<UniformKey, Uniform>,
+    // u_offset : gl::types::GLint,
+    // u_offset_value : f32,
+    // u_vp : gl::types::GLint,
+    // pub u_vp_value : glm::Mat4,
 }
+
+
 
 pub struct Uniform {
     loc: gl::types::GLint,
-    
+    value: UniformRole
 }
 
-pub enum UniformType {
+impl Uniform {
+    pub fn load_into_program(&self, gl: &gl::Gl) {
+        unsafe {
+            self.value.load_into_program(gl, self.loc);
+        }
+    }
+}
 
+
+
+pub enum UniformType {
+    Mat4(Box<nalgebra_glm::Mat4>),
+    Vec3(Box<nalgebra_glm::Vec3>)
+}
+
+impl UniformType {
+    pub fn load_into_program(&self, gl: &gl::Gl, loc: gl::types::GLint) {
+        match self {
+            UniformType::Mat4(v) => {
+                unsafe {
+                    gl.UniformMatrix4fv(loc, 1, gl::FALSE, (*v).as_ptr());
+                }
+            },
+            UniformType::Vec3(v) => {
+                unsafe {
+                    gl.Uniform3fv(loc, 1, (*v).as_ptr());
+                }
+            }
+        }
+    }
 }
 
 pub enum UniformRole {
-    DirectionnalLightDirection(Box<nalgebra_glm::Vec3>),
-    DirectionnalLightColor(Box<nalgebra_glm::Vec3>),
-    M(Box<nalgebra_glm::Mat4>),
-    V(Box<nalgebra_glm::Mat4>),
-    P(Box<nalgebra_glm::Mat4>),
-    VP(Box<nalgebra_glm::Mat4>),
+    // DirectionnalLightDirection(UniformType::Mat4),
+    // DirectionnalLightColor(Box<nalgebra_glm::Vec3>),
+    M(UniformType),
+    // V(Box<nalgebra_glm::Mat4>),
+    // P(Box<nalgebra_glm::Mat4>),
+    Color(UniformType),
+    VP(UniformType),
 }
 
 impl UniformRole {
     pub fn get_key(&self) -> UniformKey {
         match self {
-            UniformRole::DirectionnalLightDirection(_) => UniformKey::DirectionnalLightDirection,
-            UniformRole::DirectionnalLightColor(_) => UniformKey::DirectionnalLightColor,
+            // UniformRole::DirectionnalLightDirection(_) => UniformKey::DirectionnalLightDirection,
+            // UniformRole::DirectionnalLightColor(_) => UniformKey::DirectionnalLightColor,
             UniformRole::M(_) => UniformKey::M,
-            UniformRole::V(_) => UniformKey::V,
-            UniformRole::P(_) => UniformKey::P,
+            // UniformRole::V(_) => UniformKey::V,
+            // UniformRole::P(_) => UniformKey::P,
+            
             UniformRole::VP(_) => UniformKey::VP
         }
     }
+
+    fn to_uniform_name_as_string(&self) -> String {
+        match self {
+            // UniformRole::DirectionnalLightColor(_) => String::from("u_directionnal_light_color"),
+            // UniformRole::DirectionnalLightDirection(_) => String::from("u_directionnal_light_direction"),
+            UniformRole::M(_) => String::from("M"),
+            // UniformRole::V(_) => String::from("V"),
+            // UniformRole::P(_) => String::from("P"),
+            UniformRole::VP(_) => String::from("VP")
+        }
+    }
+    fn load_into_program(&self, gl: &gl::Gl, loc: gl::types::GLint)  {
+        match self {
+            // UniformRole::DirectionnalLightColor(_) => String::from("u_directionnal_light_color"),
+            // UniformRole::DirectionnalLightDirection(_) => String::from("u_directionnal_light_direction"),
+            UniformRole::M(u) => u.load_into_program(gl, loc),
+            // UniformRole::V(_) => String::from("V"),
+            // UniformRole::P(_) => String::from("P"),
+            UniformRole::VP(u) => u.load_into_program(gl, loc),
+        }
+    }
+
 }
 
-#[derive(PartialEq, Eq, Hash)]
+
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub enum UniformKey {
     DirectionnalLightDirection,
     DirectionnalLightColor,
@@ -56,6 +111,19 @@ pub enum UniformKey {
     V,
     P,
     VP,
+}
+
+impl Display for UniformKey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            UniformKey::DirectionnalLightColor => write!(f, "Directionnal Light Color"),
+            UniformKey::DirectionnalLightDirection => write!(f, "Directionnal Light Direction"),
+            UniformKey::M => write!(f, "Model Matrix"),
+            UniformKey::V => write!(f, "View Matrix"),
+            UniformKey::P => write!(f, "Projection Matrix"),
+            UniformKey::VP => write!(f, "ViewProjection Matrix"),
+        }
+    }
 }
 
 pub struct Material {
@@ -67,9 +135,25 @@ impl Program {
     pub fn set_uniform(&mut self, value: UniformRole) {
         let key = value.get_key();
         if let Some(v) = self.uniforms.get_mut(&key) {
-            *v = value;
+            *v = Uniform {
+                loc : 0,
+                value,
+
+            } ;
+        } else {
+            println!("key {} did not exist", key);
         };
         //std::collections::HashMap<UniformRole, UniformRole>
+    }
+
+    pub fn register_uniform(&mut self, value: UniformRole) {
+        let key = value.get_key();
+        if !self.uniforms.insert(key, Uniform{
+            value,
+            loc : self.get_location(&value.to_uniform_name_as_string())
+        }).is_none() {
+            println!("key {} already exist", key)
+        }
     }
     
     pub fn from_shaders(gl: &gl::Gl, shaders: &[Shader]) -> Result<Program, String> {
@@ -116,12 +200,12 @@ impl Program {
             }
         }
        
-        let u_offset_loc =  unsafe{ 
-            gl.GetUniformLocation(program_id, CString::new("offset").unwrap().into_raw())
-        };
-        let u_vp_loc =  unsafe{ 
-            gl.GetUniformLocation(program_id, CString::new("vp").unwrap().into_raw())
-        };
+        // let u_offset_loc =  unsafe{ 
+        //     gl.GetUniformLocation(program_id, CString::new("offset").unwrap().into_raw())
+        // };
+        // let u_vp_loc =  unsafe{ 
+        //     gl.GetUniformLocation(program_id, CString::new("vp").unwrap().into_raw())
+        // };
 
         
 
@@ -129,10 +213,10 @@ impl Program {
             uniforms : std::collections::HashMap::new(),
             gl : gl.clone(),
             id: program_id,
-            u_offset : u_offset_loc,
-            u_offset_value : 0.0,
-            u_vp : u_vp_loc,
-            u_vp_value : glm::translate(&glm::identity(), &glm::vec3(0.5, 0., 0.)) 
+            // u_offset : u_offset_loc,
+            // u_offset_value : 0.0,
+            // u_vp : u_vp_loc,
+            // u_vp_value : glm::translate(&glm::identity(), &glm::vec3(0.5, 0., 0.)) 
         })
     }
 
@@ -159,15 +243,18 @@ impl Program {
 
     pub fn set_used(&self) {
         unsafe {
-            self.gl.Uniform1f(self.u_offset, self.u_offset_value);
-            self.gl.UniformMatrix4fv(self.u_vp, 1, gl::FALSE, self.u_vp_value.as_ptr());
+            // self.gl.Uniform1f(self.u_offset, self.u_offset_value);
+            // self.gl.UniformMatrix4fv(self.u_vp, 1, gl::FALSE, self.u_vp_value.as_ptr());
+            let gl = &self.gl;
+            for uniform in self.uniforms.values() {
+                uniform.load_into_program(gl);
+                //self.gl.Uniform1f(self.u_offset, self.u_offset_value);
+            }
             self.gl.UseProgram(self.id);
         }
     }
 
-    pub fn set_offset(&mut self, value: f32) {
-        self.u_offset_value = value;
-    }
+
 
 }
 

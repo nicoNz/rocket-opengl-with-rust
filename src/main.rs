@@ -16,7 +16,8 @@ pub mod window_app;
 use render::mesh::Mesh;
 use render::shader::{
     Shader,
-    Program
+    Program,
+    UniformRole
 };
 
 use network::http_receiver::{
@@ -52,16 +53,20 @@ impl WindowApp for App {
                         PARAM::Y => camera.set_position_y(event.value)
                     };
                     match &mut self.mesh.program {
-                        Some(program)=>program.u_vp_value = camera.get_view_projection(),
+                        Some(program) => program.set_uniform(
+                            UniformRole::VP(Box::new(
+                                camera.get_view_projection()
+                            ))
+                        ),
                         _ => println!("err")
                     }
                         
                 }
                 TARGET::MODEL => {
-                    match &mut self.mesh.program {
-                        Some(program)=>program.set_offset(event.value),
-                        _ => println!("err")
-                    }
+                    // match &mut self.mesh.program {
+                    //     Some(program)=>program.set_offset(event.value),
+                    //     _ => println!("err")
+                    // }
                 }
             }
         }
@@ -75,11 +80,11 @@ impl WindowApp for App {
         
         match event {
             sdl2::event::Event::MouseMotion {x, .. } => {
-                let v = *x as f32;
-                match &mut self.mesh.program {
-                    Some(program)=>program.set_offset(v),
-                    _ => println!("err")
-                }
+                // let v = *x as f32;
+                // match &mut self.mesh.program {
+                //     Some(program)=>program.set_offset(v),
+                //     _ => println!("err")
+                // }
             },
             _ => {}
         }
@@ -103,9 +108,12 @@ fn main() {
                 .unwrap();
     
         let mut program = Program::from_shaders(&gl, &[vert_shader, frag_shader]).unwrap();
+
+        program.register_uniform(UniformRole::M(Box::new(glm::identity::<f32, glm::U4>())));
+        program.register_uniform(UniformRole::VP(Box::new(glm::identity::<f32, glm::U4>())));
     
         program.set_used();
-        program.u_vp_value = camera.get_view_projection();
+        program.set_uniform(UniformRole::VP(Box::new(camera.get_view_projection())));
     
         let mesh = match json_parser::get_array_data() {
             Ok(ref descr) => {
