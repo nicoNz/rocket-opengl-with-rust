@@ -4,20 +4,74 @@
 use gl;
 use std;
 use std::ffi::{CStr, CString};
-
+use nalgebra_glm;
 
 pub struct Program {
     gl: gl::Gl,
     id: gl::types::GLuint,
+    uniforms: std::collections::HashMap<UniformKey, UniformRole>,
     u_offset : gl::types::GLint,
     u_offset_value : f32,
     u_vp : gl::types::GLint,
-    pub u_vp_value : glm::Mat4
+    pub u_vp_value : glm::Mat4,
+    
 }
 
+pub struct Uniform {
+    loc: gl::types::GLint,
+    
+}
+
+pub enum UniformType {
+
+}
+
+pub enum UniformRole {
+    DirectionnalLightDirection(Box<nalgebra_glm::Vec3>),
+    DirectionnalLightColor(Box<nalgebra_glm::Vec3>),
+    M(Box<nalgebra_glm::Mat4>),
+    V(Box<nalgebra_glm::Mat4>),
+    P(Box<nalgebra_glm::Mat4>),
+    VP(Box<nalgebra_glm::Mat4>),
+}
+
+impl UniformRole {
+    pub fn get_key(&self) -> UniformKey {
+        match self {
+            UniformRole::DirectionnalLightDirection(_) => UniformKey::DirectionnalLightDirection,
+            UniformRole::DirectionnalLightColor(_) => UniformKey::DirectionnalLightColor,
+            UniformRole::M(_) => UniformKey::M,
+            UniformRole::V(_) => UniformKey::V,
+            UniformRole::P(_) => UniformKey::P,
+            UniformRole::VP(_) => UniformKey::VP
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Hash)]
+pub enum UniformKey {
+    DirectionnalLightDirection,
+    DirectionnalLightColor,
+    M,
+    V,
+    P,
+    VP,
+}
+
+pub struct Material {
+
+}
+
+
 impl Program {
-
-
+    pub fn set_uniform(&mut self, value: UniformRole) {
+        let key = value.get_key();
+        if let Some(v) = self.uniforms.get_mut(&key) {
+            *v = value;
+        };
+        //std::collections::HashMap<UniformRole, UniformRole>
+    }
+    
     pub fn from_shaders(gl: &gl::Gl, shaders: &[Shader]) -> Result<Program, String> {
         let program_id = unsafe { gl.CreateProgram() };
 
@@ -72,6 +126,7 @@ impl Program {
         
 
         Ok(Program { 
+            uniforms : std::collections::HashMap::new(),
             gl : gl.clone(),
             id: program_id,
             u_offset : u_offset_loc,

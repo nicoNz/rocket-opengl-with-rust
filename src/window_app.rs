@@ -55,11 +55,11 @@ impl WindowAppRunner {
         }
     }
     pub fn draw(&self) {
+        unsafe {
+            self.gl.Clear(gl::COLOR_BUFFER_BIT);
+        }
         self.window_app.draw();
-            
     }
-
-
 
     pub fn run_loop(&mut self) {
         let mut event_pump = self.sdl.event_pump().unwrap();
@@ -75,7 +75,7 @@ impl WindowAppRunner {
             }
 
             self.window_app.update();
-            self.window_app.draw();
+            self.draw();
 
 
 

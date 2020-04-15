@@ -68,6 +68,7 @@ impl WindowApp for App {
     }
 
     fn draw(&self) {
+
         self.mesh.draw();
     }
     fn on_window_event(&mut self, event: &sdl2::event::Event) {
@@ -117,7 +118,7 @@ fn main() {
 
         Box::new(
             App {
-                camera : camera::Camera::from_position_and_look_at(&glm::vec3(-6.0,0.0, 5.0), &glm::vec3(0., 0., 0.)),
+                camera : Camera::from_position_and_look_at(&glm::vec3(-6.0,0.0, 5.0), &glm::vec3(0., 0., 0.)),
                 receiver,
                 mesh
             }
