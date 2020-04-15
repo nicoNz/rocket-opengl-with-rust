@@ -17,6 +17,7 @@ use render::mesh::Mesh;
 use render::shader::{
     Shader,
     Program,
+    UniformTypedValue,
     UniformRole
 };
 
@@ -109,11 +110,21 @@ fn main() {
     
         let mut program = Program::from_shaders(&gl, &[vert_shader, frag_shader]).unwrap();
 
-        program.register_uniform(UniformRole::M(Box::new(glm::identity::<f32, glm::U4>())));
-        program.register_uniform(UniformRole::VP(Box::new(glm::identity::<f32, glm::U4>())));
+        let m = program.register_uniform(
+            String::from("M"),
+            UniformTypedValue::Mat4(Box::new(glm::identity::<f32, glm::U4>())),
+            UniformRole::Transform
+        );
+
+        let vp = program.register_uniform(
+            String::from("VP"),
+            UniformTypedValue::Mat4(Box::new(glm::identity::<f32, glm::U4>())),
+            UniformRole::Camera
+        );
     
         program.set_used();
-        program.set_uniform(UniformRole::VP(Box::new(camera.get_view_projection())));
+        
+        program.set_uniform(vp, UniformTypedValue::Mat4(Box::new(camera.get_view_projection())));
     
         let mesh = match json_parser::get_array_data() {
             Ok(ref descr) => {
