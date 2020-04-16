@@ -22,7 +22,7 @@ pub struct Uniform {
     loc: gl::types::GLint,
     value: UniformTypedValue,
     name: String,
-    role: Role
+    role: UniformRole
 }
 
 pub enum UniformRole {
@@ -151,20 +151,26 @@ impl Program {
         //std::collections::HashMap<UniformRole, UniformRole>
     }
 
-    pub fn register_uniform(&mut self, location_name: &String, value: UniformTypedValue, role: Role) -> GLint {
-        let loc = self.get_location(location_name);
-        if !self.uniforms.insert(
-            loc, 
-            Uniform {
-                value,
-                loc,
-                name: location_name.clone(),
-                role 
-            }
-        ).is_none() {
-            println!("key {} already exist", loc)
+    pub fn register_uniform(&mut self, location_name: &String, value: UniformTypedValue, role: UniformRole) -> GLint {
+        let loc = self.get_uniform_location(location_name);
+        match loc {
+            Ok(loc)=> {
+                println!("name {} found at loc {}", location_name, loc);
+                if !self.uniforms.insert(
+                    loc, 
+                    Uniform {
+                        value,
+                        loc,
+                        name: location_name.clone(),
+                        role 
+                    }
+                ).is_none() {
+                    println!("Error while trying to get location of {}, key {} already exist",location_name, loc)
+                }
+                loc
+            },
+            Err(())=>panic!("panic because the behavious when a location is not found is not implemented")
         }
-        loc
     }
     
     pub fn from_shaders(gl: &gl::Gl, shaders: &[Shader]) -> Result<Program, String> {
@@ -232,20 +238,49 @@ impl Program {
     }
 
 
-    pub fn get_location(&self, attribute_name: &String) -> i32 {
+    pub fn get_attribute_location(&self, attribute_name: &String) -> Result<GLint, ()> {
         let mut string = attribute_name.clone();
         string.push('\0');
 
         match CStr::from_bytes_with_nul(&string.into_bytes()) {
             Ok(cstr) => {
-                unsafe {
-                    self.gl.GetAttribLocation(self.id, cstr.as_ptr())
+                let loc = unsafe {self.gl.GetAttribLocation(self.id, cstr.as_ptr())};
+                if loc >= 0 {
+                    return Ok(loc);
+                } else {
+                    println!("location not found for attribute named {}", attribute_name);
+                    Err(())
                 }
             }
             _ => {
-                return 0;
+                println!("uniform named {} is not a formatted as a C string", attribute_name);
+                Err(())
             }
         }
+    }
+
+    pub fn get_uniform_location(&self, uniform_name: &String) -> Result<GLint, ()>{
+        let mut string = uniform_name.clone();
+        string.push('\0');
+
+        match CStr::from_bytes_with_nul(&string.into_bytes()) {
+            Ok(cstr) => {
+                let loc =  unsafe {self.gl.GetUniformLocation(self.id, cstr.as_ptr()) };
+                    
+                if loc >= 0 {
+                    return Ok(loc);
+                } else {
+                    println!("location not found for uniform named {}", uniform_name);
+                    Err(())
+                }
+                
+            }
+            _ => {
+                println!("uniform named {} is not a formatted as a C string", uniform_name);
+                Err(())
+            }
+        }
+
     }
 
     pub fn id(&self) -> gl::types::GLuint {

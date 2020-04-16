@@ -110,7 +110,7 @@ fn get_data_type(content: &json::JsonValue) -> Result<gl::types::GLuint, MakeVbo
 fn get_float_buffer_data(content: &json::JsonValue) -> Result<Vec::<f32>, MakeVbosFromJsonDescriptionError> {
     let mut array_data = Vec::<f32>::new();
     for member in content["data"].members() {
-        println!("{:?}", member);
+        //println!("{:?}", member);
         if let Some(v) = member.as_f32() {
             array_data.push(v);
         }
@@ -126,7 +126,7 @@ fn get_float_buffer_data(content: &json::JsonValue) -> Result<Vec::<f32>, MakeVb
 fn get_short_buffer_data(content: &json::JsonValue) -> Result<Vec::<u8>, MakeVbosFromJsonDescriptionError> {
     let mut array_data = Vec::<u8>::new();
     for member in content["data"].members() {
-        println!("{:?}", member);
+        //println!("{:?}", member);
         if let Some(v) = member.as_u8() {
             array_data.push(v);
         }
@@ -237,7 +237,7 @@ pub fn get_array_data() -> Result<MeshDescription, MakeVbosFromJsonDescriptionEr
 
 
     if let Ok(f) = fs::read_to_string("vertdata.json").unwrap().parse::<String>() {
-        println!("{}", &f );
+        //println!("{}", &f );
         if let Ok(json) = json::parse(&f) {
             return make_vao_description(&json);
         } else {

@@ -101,18 +101,26 @@ impl Mesh {
        
         match &self.program {
             Some(program) => {
-                let loc = program.get_location(attribute_name);
-    
                 let vbo = boxed_vbo.as_ref();
-                if loc == 0 {
-                   self.n_verts =  vbo.get_n_elements() as i32;
+                
+                match program.get_attribute_location(attribute_name) {
+                    Ok(loc) => {
+                        if loc == 0 {
+                           self.n_verts =  vbo.get_n_elements() as i32;
+                        }
+                        self.vao.attach_vbo(vbo, loc as u32);
+                        self.vbos.push((
+                            boxed_vbo, 
+                            loc as usize, 
+                            Some(attribute_name.clone())
+                        ));
+                    },
+                    Err(()) => {
+                        panic!("Panic as no implementation was provide if the attribute location was not found \nfail to find {}", attribute_name);
+                    }
                 }
-                self.vao.attach_vbo(vbo, loc as u32);
-                self.vbos.push((
-                    boxed_vbo, 
-                    loc as usize, 
-                    Some(attribute_name.clone())
-                ));
+
+
             }
             None => {
                 println!("no material for vbo");

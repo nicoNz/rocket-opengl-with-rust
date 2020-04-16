@@ -33,10 +33,14 @@ use window_app::{
 
 use camera::Camera;
 
+use gl::types::GLint;
+
 struct App {
     mesh: Mesh,
     camera: Camera,
     receiver: std::sync::mpsc::Receiver<network::http_receiver::Msg>,
+    m: GLint,
+    vp: GLint
     //program: Option<Box<Program>>
 }
 
@@ -55,7 +59,8 @@ impl WindowApp for App {
                     };
                     match &mut self.mesh.program {
                         Some(program) => program.set_uniform(
-                            UniformRole::VP(Box::new(
+                            self.vp,
+                            UniformTypedValue::Mat4(Box::new(
                                 camera.get_view_projection()
                             ))
                         ),
@@ -111,13 +116,13 @@ fn main() {
         let mut program = Program::from_shaders(&gl, &[vert_shader, frag_shader]).unwrap();
 
         let m = program.register_uniform(
-            String::from("M"),
+            &String::from("M"),
             UniformTypedValue::Mat4(Box::new(glm::identity::<f32, glm::U4>())),
             UniformRole::Transform
         );
 
         let vp = program.register_uniform(
-            String::from("VP"),
+            &String::from("VP"),
             UniformTypedValue::Mat4(Box::new(glm::identity::<f32, glm::U4>())),
             UniformRole::Camera
         );
@@ -139,7 +144,9 @@ fn main() {
             App {
                 camera : Camera::from_position_and_look_at(&glm::vec3(-6.0,0.0, 5.0), &glm::vec3(0., 0., 0.)),
                 receiver,
-                mesh
+                mesh,
+                m,
+                vp
             }
         )
     });
