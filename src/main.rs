@@ -12,6 +12,7 @@ pub mod camera;
 pub mod json_parser;
 pub mod network;
 pub mod window_app;
+pub mod parameter;
 
 use render::mesh::Mesh;
 use render::shader::{
