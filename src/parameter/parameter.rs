@@ -97,22 +97,76 @@ impl Parameter {
     }
 }
 
-
+use std::cell::RefCell;
+use std::rc::Rc;
 type Parameters = HashMap<i16, Parameter>;
 
 pub fn add(a: i32, b: i32) -> i32 {
     a + b
 }
 
+
+trait InnerListenner {
+    fn set_value(&mut self, v: f32) {
+        println!("{}", v)
+    }
+}
+
+#[derive(Clone)]
+struct Listenner<T: InnerListenner> {
+    inner: Rc<RefCell<T>>
+}
+
+
+impl<T: 'static +  InnerListenner> Listenner<T> {
+    pub fn new(t: T) -> Self {
+        Self {
+            inner : Rc::new(RefCell::new(t))
+        }
+    }
+
+//Parameter::new(String::from("my P1"), 2)
+    pub fn listen(&mut self, p: &mut Parameter) {
+        let delegate = self.clone();
+
+        let id = p.register_callback( Box::new( move |v| {
+            match delegate.try_borrow_mut() {
+                Ok(mut r) => {
+                    r.set_value(v);
+                },
+                Err(e)=>{}
+            }
+            
+        }));
+    }
+}
+use std::ops::{Deref, DerefMut};
+
+impl<T: InnerListenner> Deref for Listenner<T> {
+    type Target = Rc<RefCell<T>>;
+
+  fn deref(&self) -> &Rc<RefCell<T>> {
+      &self.inner
+  }
+
+}
+
+impl<T: InnerListenner> DerefMut for Listenner<T> {
+
+
+    fn deref_mut(&mut self) -> &mut Rc<RefCell<T>> {
+        &mut self.inner
+    }
+
+}
+
+
+
 #[cfg(test)]
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
 
-    #[test]
-    fn test_add() {
-        assert_eq!(add(1, 2), 3);
-    }
     #[test]
     fn parameter_test() {
         let mut p = Parameters::new();
@@ -128,6 +182,24 @@ mod tests {
         }));
         
         subr.set_value(0.7);
+    }
+
+
+    struct My {
+        value: f32
+    }
+
+    impl InnerListenner for My {
+        fn set_value(&mut self, v: f32) {
+            self.value = v;
+        }
+    }
+
+    #[test]
+    fn self_struct_test() {
+        let listenner: Listenner<My> = Listenner::new(My{value : 4.1});
+
+
     }
 
 
