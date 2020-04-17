@@ -159,15 +159,26 @@ impl<T: 'static +  InnerListenner> Listenner<T> {
 
 //Parameter::new(String::from("my P1"), 2)
     pub fn listen(&mut self, p: &mut Parameter) {
-        let delegate = self.clone();
+        let delegate = Rc::downgrade(self);
 
         let id = p.register_callback( Box::new( move |v| {
-            match delegate.try_borrow_mut() {
-                Ok(mut r) => {
-                    r.set_value(v);
+          
+            match delegate.upgrade() {
+                Some (listenner) => {
+                    match listenner.try_borrow_mut() {
+                        Ok(mut r) => {
+                            r.set_value(v);
+                        },
+                        Err(e)=>{
+                            panic!("fail to borrow rc for listenner")
+                        }
+                    }
                 },
-                Err(e)=>{}
+                None => {
+                    panic!("fail to upgrade, Weak pointer of listenner, consider removing the store lambda function")
+                }
             }
+            
             
         }));
     }
@@ -243,6 +254,7 @@ mod tests {
         };
 
         listenner.listen(subr);
+        
         
         subr.set_value(0.7);
 
