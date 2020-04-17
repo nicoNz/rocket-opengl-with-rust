@@ -50,21 +50,37 @@ pub enum ParameterContent {
     F32(Box<ParameterF32>)
 }
 
+pub enum CallbackArgument {
+    F32(f32)
+}
+
+pub enum CallbackSignature {
+    F32(Box<dyn Fn(f32)>)
+}
+
 impl ParameterContent {
-    pub fn set_value(&mut self, value: f32) {
+    pub fn set_value(&mut self, value: CallbackArgument) {
         match self {
             Self::F32(param) => {
-                param.value = value;
-                for (key, cb) in param.subscriptions.subscriptions.iter() {
-                    cb(value);
+                match value {
+                    CallbackArgument::F32(value)=>{                        
+                        param.value = value;
+                        for (key, cb) in param.subscriptions.subscriptions.iter() {
+                            cb(value);
+                        }
+                    }
                 }
             }
         }
     }
-    pub fn subscribe(&mut self, f: Box<dyn Fn(f32)>) -> i16 {
+    pub fn subscribe(&mut self, f: CallbackSignature) -> i16 {
         match self {
             Self::F32 (p) => {
-                p.subscriptions.add_subscription(f)
+                match f {
+                    CallbackSignature::F32(f) => {
+                        p.subscriptions.add_subscription(f)
+                    }
+                }
                 
             }
         }
@@ -92,11 +108,11 @@ impl Parameter {
         self.id = id;
     }
 
-    pub fn set_value(&mut self, v: f32) {
+    pub fn set_value(&mut self, v: CallbackArgument) {
         self.content.set_value(v);
     }
 
-    pub fn register_callback(&mut self, f: Box<dyn Fn(f32)>) -> i16 {
+    pub fn register_callback(&mut self, f: CallbackSignature) -> i16 {
         self.content.subscribe(f)
     }
 }
@@ -161,7 +177,7 @@ impl<T: 'static +  InnerListenner> Listenner<T> {
     pub fn listen(&mut self, p: &mut Parameter) {
         let delegate = Rc::downgrade(self);
 
-        let id = p.register_callback( Box::new( move |v| {
+        let id = p.register_callback( CallbackSignature::F32 (Box::new( move |v| {
           
             match delegate.upgrade() {
                 Some (listenner) => {
@@ -180,7 +196,7 @@ impl<T: 'static +  InnerListenner> Listenner<T> {
             }
             
             
-        }));
+        })));
     }
 }
 use std::ops::{Deref, DerefMut};
@@ -226,11 +242,11 @@ mod tests {
             Some(v) => v,
             None => panic!("bad index")
         };
-        let _addr = subr.register_callback( Box::new(move |v: f32|{
+        let _addr = subr.register_callback( CallbackSignature::F32(Box::new(move |v: f32|{
             assert_eq!(v, 0.7);
-        }));
+        })));
         
-        subr.set_value(0.7);
+        subr.set_value( CallbackArgument::F32(0.7));
     }
 
 
@@ -255,7 +271,6 @@ mod tests {
                 ParameterContent::F32(Box::new(ParameterF32::new()))
             )
         );
-        //parameters.push(Parameter::new(String::from("param2")));
 
         let mut listenner: Listenner<My> = Listenner::new(My{value : 0.1});
 
@@ -265,7 +280,7 @@ mod tests {
         };
 
         listenner.listen(subr);
-        subr.set_value(0.7);
+        subr.set_value(CallbackArgument::F32(0.7));
 
     }
 
