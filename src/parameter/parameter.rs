@@ -80,11 +80,11 @@ pub struct Parameter {
 
 impl Parameter {
 
-    pub fn new(label: String) -> Self {
+    pub fn new(label: String, content: ParameterContent) -> Self {
         Self {
             label,
             id: None,
-            content : ParameterContent::F32(Box::new(ParameterF32::new()))
+            content
         }
     }
 
@@ -215,7 +215,13 @@ mod tests {
         let mut p = Parameters::new();
 
         //TODO => wrap in order to throw an error if exist, and send back the key if exist
-        p.insert(1, Parameter::new(String::from("my P1")));
+        p.insert(
+            1, 
+            Parameter::new(
+                String::from("my P1"), 
+                ParameterContent::F32(Box::new(ParameterF32::new()))
+            )
+        );
         let subr =  match p.get_mut(&1) {
             Some(v) => v,
             None => panic!("bad index")
@@ -243,8 +249,13 @@ mod tests {
     fn self_struct_test() {
 
         let mut parameters = ParametersPool::new();
-        parameters.push(Parameter::new(String::from("param1")));
-        parameters.push(Parameter::new(String::from("param2")));
+        parameters.push(
+            Parameter::new(
+                String::from("my P1"), 
+                ParameterContent::F32(Box::new(ParameterF32::new()))
+            )
+        );
+        //parameters.push(Parameter::new(String::from("param2")));
 
         let mut listenner: Listenner<My> = Listenner::new(My{value : 0.1});
 
@@ -254,8 +265,6 @@ mod tests {
         };
 
         listenner.listen(subr);
-        
-        
         subr.set_value(0.7);
 
     }
