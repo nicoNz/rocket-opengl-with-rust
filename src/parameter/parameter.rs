@@ -75,17 +75,21 @@ impl ParameterContent {
 pub struct Parameter {
     label: String,
     content: ParameterContent,
-    id: i16,
+    id: Option<i16>,
 }
 
 impl Parameter {
 
-    pub fn new(label: String, id: i16) -> Self {
+    pub fn new(label: String) -> Self {
         Self {
             label,
-            id,
+            id: None,
             content : ParameterContent::F32(Box::new(ParameterF32::new()))
         }
+    }
+
+    pub fn set_id(&mut self, id: Option<i16>) {
+        self.id = id;
     }
 
     pub fn set_value(&mut self, v: f32) {
@@ -100,6 +104,34 @@ impl Parameter {
 use std::cell::RefCell;
 use std::rc::Rc;
 type Parameters = HashMap<i16, Parameter>;
+
+
+struct ParametersPool {
+    count: i16,
+    pub parameters: Parameters
+}
+
+impl ParametersPool {
+    pub fn new () -> Self {
+        Self {
+            count : 0,
+            parameters : HashMap::new()
+        }
+    }
+    pub fn push (&mut self, mut p: Parameter) -> i16 {
+        self.count += 1;
+        let count = self.count;
+        p.set_id(Some(count));
+        self.parameters.insert(count, p);
+        self.count = count;
+        count
+    }
+
+    pub fn get_mut (&mut self, k: i16) -> Option<&mut Parameter>{
+        self.parameters.get_mut(&k)
+    }
+}
+
 
 pub fn add(a: i32, b: i32) -> i32 {
     a + b
@@ -172,7 +204,7 @@ mod tests {
         let mut p = Parameters::new();
 
         //TODO => wrap in order to throw an error if exist, and send back the key if exist
-        p.insert(1, Parameter::new(String::from("my P1"), 2));
+        p.insert(1, Parameter::new(String::from("my P1")));
         let subr =  match p.get_mut(&1) {
             Some(v) => v,
             None => panic!("bad index")
@@ -192,13 +224,27 @@ mod tests {
     impl InnerListenner for My {
         fn set_value(&mut self, v: f32) {
             self.value = v;
+            assert_eq!(v, 0.7);
         }
     }
 
     #[test]
     fn self_struct_test() {
-        let listenner: Listenner<My> = Listenner::new(My{value : 4.1});
 
+        let mut parameters = ParametersPool::new();
+        parameters.push(Parameter::new(String::from("param1")));
+        parameters.push(Parameter::new(String::from("param2")));
+
+        let mut listenner: Listenner<My> = Listenner::new(My{value : 0.1});
+
+        let subr =  match parameters.get_mut(1) {
+            Some(v) => v,
+            None => panic!("bad index")
+        };
+
+        listenner.listen(subr);
+        
+        subr.set_value(0.7);
 
     }
 
