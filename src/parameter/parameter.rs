@@ -228,12 +228,9 @@ impl<T: 'static +  InnerListenner> Listenner<T> {
 //Parameter::new(String::from("my P1"), 2)
     pub fn listen(&mut self, p: &mut Parameter) {
         let delegate = Rc::downgrade(self);
-        println!("creating a function");
-
         match &p.content {
             ParameterContent::F32(v) => {
                 let id = p.register_callback( CallbackSignature::F32 (Box::new( move |v| {
-                    println!("cb is being called");
                     match delegate.upgrade() {
                         Some (listenner) => {
                             match listenner.try_borrow_mut() {

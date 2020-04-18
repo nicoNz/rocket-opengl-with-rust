@@ -13,6 +13,7 @@ pub mod json_parser;
 pub mod network;
 pub mod window_app;
 pub mod parameter;
+pub mod file;
 
 use render::mesh::Mesh;
 use render::shader::{
@@ -67,7 +68,6 @@ impl WindowApp for App {
                         ),
                         _ => println!("err")
                     }
-                        
                 }
                 TARGET::MODEL => {
                     // match &mut self.mesh.program {
