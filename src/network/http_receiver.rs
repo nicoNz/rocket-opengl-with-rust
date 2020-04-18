@@ -1,11 +1,11 @@
 
 
+use std::sync::mpsc::{Sender, channel, Receiver};
 use std::thread;
-use std::sync::mpsc::channel;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-type SendSyncSender = std::sync::Arc<std::sync::Mutex<std::sync::mpsc::Sender<Msg>>>;
+type SendSyncSender = Arc<Mutex<Sender<Msg>>>;
 
 fn target_to_enum(target_name: &rocket::http::RawStr)->Result<TARGET, ()> {
     match target_name.as_str() {
@@ -60,7 +60,7 @@ pub struct Msg {
     pub value: f32
 }
 
-pub fn launch_http() -> std::sync::mpsc::Receiver<Msg> {
+pub fn launch_http() -> Receiver<Msg> {
     let (sender, receiver) = channel::<Msg>();
     let thread_safe_sender = Arc::new(Mutex::new(sender));
     thread::spawn(|| {
