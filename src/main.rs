@@ -9,11 +9,11 @@ extern crate json;
 
 pub mod render;
 pub mod camera;
-pub mod json_parser;
 pub mod network;
 pub mod window_app;
 pub mod parameter;
 pub mod file;
+
 
 use render::mesh::Mesh;
 use render::shader::{
@@ -35,7 +35,10 @@ use window_app::{
 
 use camera::Camera;
 
+//use file::json_parser ;
+
 use gl::types::GLint;
+use file::vbo_description_parser::get_array_data;
 
 struct App {
     mesh: Mesh,
@@ -132,7 +135,7 @@ fn main() {
         
         program.set_uniform(vp, UniformTypedValue::Mat4(Box::new(camera.get_view_projection())));
     
-        let mesh = match json_parser::get_array_data() {
+        let mesh = match get_array_data() {
             Ok(ref descr) => {
                 Mesh::from_description(&gl, descr, Some(Box::new(program)))
             },

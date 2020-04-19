@@ -3,11 +3,14 @@ use std::fs;
 use std::error::Error;
 use std::io::Error as IoError;
 
-enum JsonToFileError {
+#[derive(Debug)]
+pub enum JsonToFileError {
     FileError(IoError),
     CastError(std::convert::Infallible),
     ParseError(json::Error)
 }
+
+
 
 impl std::convert::From<IoError> for JsonToFileError {
     fn from(error: IoError) -> Self {

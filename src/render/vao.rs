@@ -1,8 +1,8 @@
 use gl;
-use crate::json_parser::{
-    VaoDescription, 
-    AllowedVboType
-};
+// use crate::file::vbo_description_parser::{
+//     VaoDescription, 
+//     AllowedVboType
+// };
 
 //use crate::VboF32;
 use crate::render::vbo::Vbo;
