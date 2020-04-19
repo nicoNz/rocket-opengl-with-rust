@@ -1,4 +1,17 @@
 use std::collections::HashMap;
+use crate::file::json_parser::from_file_name;
+use json::{
+    JsonValue
+};
+
+enum ShaderDescriptionFromFileError {
+    NameNotFound,
+    FragmentShaderNotFound,
+    VertexShaderNotFound,
+    UniformsNotFound,
+    UniformsArrayIsEmpty,
+    UniformNotFound
+}
 
 pub enum ShaderSource {
     File(String),
@@ -113,7 +126,26 @@ impl InnerUniformDescription for UniformDescriptionMat4 {
 
 type UniformDescription = Box<dyn InnerUniformDescription>;
 
-type Uniforms = HashMap<i16, UniformDescription>;
+struct Uniforms (Vec<UniformDescription>);
+impl Uniforms {
+    pub fn new() -> Self {
+        Self(Vec::<UniformDescription>::new())
+    }
+    fn push(&mut self, uniform: UniformDescription) {
+        self.push(uniform);
+    }
+}
+
+impl std::iter::FromIterator<UniformDescription> for Uniforms {
+    fn from_iter<I: IntoIterator<Item=UniformDescription>>(iter: I) -> Self {
+        let mut c: Uniforms = Uniforms::new();
+        for i in iter {
+            c.push(i);
+        }
+        c
+    }
+}
+
 
 
 pub struct ShaderDescription {
@@ -124,12 +156,14 @@ pub struct ShaderDescription {
 }
 
 
-fn get_json() -> Result<JSON> {
 
-}
 
-fn get_name() -> String {
 
+fn get_name(json: &JsonValue) -> Result<String, ShaderDescriptionFromFileError> {
+    match json["name"].as_str() {
+        Some(name) => Ok(String::from(name)),
+        None => Err(ShaderDescriptionFromFileError::NameNotFound)
+    }
 }
 
 enum ShaderType {
@@ -137,24 +171,79 @@ enum ShaderType {
     Fragment
 }
 
-fn get_shader(shader_type: ShaderType) -> Result<ShaderSource, Box<dyn std::error::Error>> {
-    
+fn get_shader_source(json: &JsonValue, shader_type: ShaderType) -> Result<ShaderSource, ShaderDescriptionFromFileError> {
+    Ok(ShaderSource::Raw( String::from("Hello")))
 }
 
-fn get_uniforms() -> Result<Uniforms, Box<dyn std::error::Error>> {
+// {
+//     "name" : "VP",
+//     "type" : "mat4",
+//     "role" : "VP",
+//     "isParam" : false
+// },
+// {
+//     "name" : "intensity",
+//     "type" : "float32",
+//     "isParam" : true,
+//     "defaultValue" : 0.5,
+//     "min" : 0.0,
+//     "max" : 1.0
+// }
+
+fn get_uniform(json: &JsonValue) -> UniformDescription {
     
+    UniformDescription {
+        name : json["name"].to_str()?,
+        uniform_type : UniformType::from_string(json["type"].to_str()),
+        is_param,
+        default_value
+
+    }
 }
+
+
+
+fn get_uniforms(json: &JsonValue) -> Result<Uniforms, ShaderDescriptionFromFileError> {
+    let uniforms = json["uniforms"];
+    if(uniforms.is_array()) {
+        
+        if uniforms.len() > 0 {
+            match uniforms {
+                JsonValue::Array(uniforms) => {
+                    Ok (
+                        uniforms.into_iter().map(|json|{get_uniform(&json)}).collect()
+                    )
+                }
+            }
+
+            } else {
+                return Err(ShaderDescriptionFromFileError::UniformsNotFound);
+            }
+
+
+    } else if uniforms.is_null() {
+        return Err(ShaderDescriptionFromFileError::UniformsNotFound);
+    } else {
+        return Err(ShaderDescriptionFromFileError::uniformsHasBadType);
+    }
+}
+
+
+
+type ShaderDescriptionFromFileResult = Result<ShaderDescription, ShaderDescriptionFromFileError>;
 
 impl ShaderDescription {
-    pub fn from_file(address: &String) -> Result<Self, Box<dyn std::error::Error>> {
-        match get_json() {
+    pub fn from_file(address: &String) -> ShaderDescriptionFromFileResult {
+
+        match from_file_name(address) {
             Ok(json)=>{
+                
                 Ok(
                     Self {
-                        name : get_name(),
-                        fragment_shader : get_shader(ShaderType::Fragment)?,
-                        vertex_shader : get_shader(ShaderType::Vertex)?,
-                        uniforms : get_uniforms()? 
+                        name : get_name(&json)?,
+                        fragment_shader : get_shader_source(&json, ShaderType::Fragment)?,
+                        vertex_shader : get_shader_source(&json, ShaderType::Vertex)?,
+                        uniforms : get_uniforms(&json)? 
                     }
                 )
             },
