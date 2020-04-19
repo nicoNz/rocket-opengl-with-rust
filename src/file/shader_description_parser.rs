@@ -8,7 +8,8 @@ use json::{
 
 #[derive(Debug, Clone)]
 enum ShaderDescriptionFromFileError {
-    NameNotFound,
+    ShaderNameNotFound,
+    UniformNameNotFound,
     FragmentShaderNotFound,
     VertexShaderNotFound,
     UniformsNotFound,
@@ -39,12 +40,13 @@ pub enum ShaderSource {
     File(String),
     Raw(String)
 }
-
+#[derive(Debug)]
 pub enum UniformValue {
     Float32(f32),
     Mat4(glm::Mat4)
 }
 
+#[derive(Debug, PartialEq)]
 pub enum UniformType {
     Float32,
     Mat4
@@ -214,10 +216,17 @@ pub struct ShaderDescription {
 
 
 
-fn get_name(json: &JsonValue) -> Result<String, ShaderDescriptionFromFileError> {
+fn get_shader_name(json: &JsonValue) -> Result<String, ShaderDescriptionFromFileError> {
     match json["name"].as_str() {
         Some(name) => Ok(String::from(name)),
-        None => Err(ShaderDescriptionFromFileError::NameNotFound)
+        None => Err(ShaderDescriptionFromFileError::ShaderNameNotFound)
+    }
+}
+
+fn get_uniform_name(json: &JsonValue) -> Result<String, ShaderDescriptionFromFileError> {
+    match json["name"].as_str() {
+        Some(name) => Ok(String::from(name)),
+        None => Err(ShaderDescriptionFromFileError::UniformNameNotFound)
     }
 }
 
@@ -230,20 +239,7 @@ fn get_shader_source(json: &JsonValue, shader_type: ShaderType) -> Result<Shader
     Ok(ShaderSource::Raw( String::from("Hello")))
 }
 
-// {
-//     "name" : "VP",
-//     "type" : "mat4",
-//     "role" : "VP",
-//     "isParam" : false
-// },
-// {
-//     "name" : "intensity",
-//     "type" : "float32",
-//     "isParam" : true,
-//     "defaultValue" : 0.5,
-//     "min" : 0.0,
-//     "max" : 1.0
-// }
+
 
 fn get_type(json: &JsonValue) -> Result<UniformType, ShaderDescriptionFromFileError> {
     match json["type"].as_str() {
@@ -278,7 +274,7 @@ fn get_uniform(json: &JsonValue) -> Result<UniformDescription, ShaderDescription
             return Ok (
                 Box::new(
                     UniformDescriptionF32::new(
-                        get_name(json)?,
+                        get_uniform_name(json)?,
                         get_is_param(json)?,
                         get_f32_from_field_name(json, "defaultValue")?,
                         get_f32_from_field_name(json, "min")?,
@@ -292,7 +288,7 @@ fn get_uniform(json: &JsonValue) -> Result<UniformDescription, ShaderDescription
             return Ok (
                 Box::new(
                     UniformDescriptionMat4::new(
-                        get_name(json)?,
+                        get_uniform_name(json)?,
                         get_is_param(json)?,
                     )
                 )
@@ -347,13 +343,13 @@ pub type ShaderDescriptionFromFileResult = Result<ShaderDescription, ShaderDescr
 
 impl ShaderDescription {
     pub fn from_file(address: &String) -> ShaderDescriptionFromFileResult {
-
         match from_file_name(address) {
+           
             Ok(json)=>{
                 
                 Ok(
                     Self {
-                        name : get_name(&json)?,
+                        name : get_shader_name(&json)?,
                         fragment_shader : get_shader_source(&json, ShaderType::Fragment)?,
                         vertex_shader : get_shader_source(&json, ShaderType::Vertex)?,
                         uniforms : get_uniforms(&json)? 
@@ -369,9 +365,7 @@ impl ShaderDescription {
 
 
 #[allow(dead_code)]
-fn bad_add(a: i32, b: i32) -> i32 {
-    a - b
-}
+
 
 #[cfg(test)]
 mod tests {
@@ -379,8 +373,50 @@ mod tests {
     use super::*;
 
     #[test]
-    fn summon() {
-        ShaderDescription::from_file(&String::from("my_shader"));
+    fn summon() -> Result<(), ShaderDescriptionFromFileError> {
+        match ShaderDescription::from_file(&String::from("myshader.json")) {
+            Ok(v) => {
+                assert_eq!(v.name, "my shader");
+                assert_eq!(v.uniforms[0].get_name(), "VP");
+                assert_eq!(v.uniforms[0].get_uniform_type(), UniformType::Mat4);
+                assert_eq!(v.uniforms[0].is_param(), false);
+
+                assert_eq!(v.uniforms[1].get_name(), "intensity");
+                assert_eq!(v.uniforms[1].get_uniform_type(), UniformType::Float32);
+                assert_eq!(v.uniforms[1].is_param(), false);
+                assert_eq!(v.uniforms[1].get_default_value(), 0.5);
+                assert_eq!(v.uniforms[1].get_min(), 0.0);
+                assert_eq!(v.uniforms[1].get_max(), 1.0);
+
+                Ok(())
+            }
+            Err(e) => Err(e)
+        }
     }
 
 }
+
+/*
+{
+    "name" : "my shader",
+    "frag" : "triangle.frag",
+    "vert" : "triangle.vert",
+    "uniforms" : [
+        {
+            "name" : "VP",
+            "type" : "mat4",
+            "role" : "VP",
+            "isParam" : false
+        },
+        {
+            "name" : "intensity",
+            "type" : "float32",
+            "isParam" : true,
+            "defaultValue" : 0.5,
+            "min" : 0.0,
+            "max" : 1.0
+        }
+
+    ]
+}
+*/

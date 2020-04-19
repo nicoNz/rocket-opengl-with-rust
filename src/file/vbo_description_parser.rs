@@ -233,10 +233,10 @@ fn make_vao_description(v : &json::JsonValue) -> Result<MeshDescription, MakeVbo
 }
 
 
-pub fn get_array_data() -> Result<MeshDescription, MakeVbosFromJsonDescriptionError> {
+pub fn get_array_data(file_path: String) -> Result<MeshDescription, MakeVbosFromJsonDescriptionError> {
 
 
-    if let Ok(f) = fs::read_to_string("vertdata.json").unwrap().parse::<String>() {
+    if let Ok(f) = fs::read_to_string(file_path).unwrap().parse::<String>() {
         //println!("{}", &f );
         if let Ok(json) = json::parse(&f) {
             return make_vao_description(&json);

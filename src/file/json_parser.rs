@@ -33,7 +33,7 @@ impl std::convert::From<json::Error> for JsonToFileError {
 type FileToJsonResult = Result<JsonValue, JsonToFileError>;
 
 pub fn from_file_name(file_name: &String) -> FileToJsonResult {
-    let file = fs::read_to_string("vertdata.json")?;
+    let file = fs::read_to_string(file_name)?;
     let string_content = file.parse::<String>()?;
     let json = json::parse(&string_content)?;
     Ok(json)

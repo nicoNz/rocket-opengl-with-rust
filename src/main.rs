@@ -135,7 +135,7 @@ fn main() {
         
         program.set_uniform(vp, UniformTypedValue::Mat4(Box::new(camera.get_view_projection())));
     
-        let mesh = match get_array_data() {
+        let mesh = match get_array_data(String::from("vertdata.json")) {
             Ok(ref descr) => {
                 Mesh::from_description(&gl, descr, Some(Box::new(program)))
             },
