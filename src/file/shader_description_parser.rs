@@ -40,7 +40,7 @@ pub enum ShaderSource {
     File(String),
     Raw(String)
 }
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum UniformValue {
     Float32(f32),
     Mat4(glm::Mat4)
@@ -207,8 +207,10 @@ type Uniforms = Vec<UniformDescription>;
 
 pub struct ShaderDescription {
     name: String,
-    fragment_shader: ShaderSource,
-    vertex_shader: ShaderSource,
+    fragment_shader_raw: Option<String>,
+    vertex_shader_raw: Option<String>,
+    fragment_shader_file: Option<String>,
+    vertex_shader_file: Option<String>,
     uniforms: Uniforms,
 }
 
@@ -235,8 +237,40 @@ enum ShaderType {
     Fragment
 }
 
-fn get_shader_source(json: &JsonValue, shader_type: ShaderType) -> Result<ShaderSource, ShaderDescriptionFromFileError> {
-    Ok(ShaderSource::Raw( String::from("Hello")))
+impl ShaderType {
+    pub fn as_string(&self) -> String {
+        match self {
+            Self::Fragment => String::from("frag"),
+            Self::Vertex => String::from("vert")
+        }
+    }
+}
+
+use std::error::Error;
+
+/// return in a Result, the path and the raw content of a givent jsonObject in separate options
+/// will return an error if any of the path or content were found
+fn get_shader_source(json: &JsonValue, shader_type: ShaderType) -> Result<(Option<String>, Option<String>), ShaderDescriptionFromFileError> {
+    match json[shader_type.as_string()].as_str() {
+        Some(shader_file_name) => {
+            match std::fs::read_to_string(shader_file_name) {
+                Ok(content) => Ok(
+                    (
+                        Some(String::from(shader_file_name)),
+                        Some(content),
+                    )
+                ),
+                
+                Err(e) => {
+                    println!("failt to find source {:?}", e);
+                    println!("not found  {:?}", shader_file_name);
+                    Err(ShaderDescriptionFromFileError::FragmentShaderNotFound)
+                }
+            }
+        },
+        None => Err(ShaderDescriptionFromFileError::FragmentShaderNotFound)
+    }
+
 }
 
 
@@ -346,12 +380,16 @@ impl ShaderDescription {
         match from_file_name(address) {
            
             Ok(json)=>{
-                
+
+                let (fragment_shader_file, fragment_shader_raw) = get_shader_source(&json, ShaderType::Fragment)?;
+                let (vertex_shader_file, vertex_shader_raw) = get_shader_source(&json, ShaderType::Vertex)?;
                 Ok(
                     Self {
                         name : get_shader_name(&json)?,
-                        fragment_shader : get_shader_source(&json, ShaderType::Fragment)?,
-                        vertex_shader : get_shader_source(&json, ShaderType::Vertex)?,
+                        fragment_shader_file,
+                        fragment_shader_raw,
+                        vertex_shader_file,
+                        vertex_shader_raw,
                         uniforms : get_uniforms(&json)? 
                     }
                 )
@@ -371,7 +409,7 @@ impl ShaderDescription {
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
-
+    use std::error::Error;
     #[test]
     fn summon() -> Result<(), ShaderDescriptionFromFileError> {
         match ShaderDescription::from_file(&String::from("myshader.json")) {
@@ -383,14 +421,18 @@ mod tests {
 
                 assert_eq!(v.uniforms[1].get_name(), "intensity");
                 assert_eq!(v.uniforms[1].get_uniform_type(), UniformType::Float32);
-                assert_eq!(v.uniforms[1].is_param(), false);
-                assert_eq!(v.uniforms[1].get_default_value(), 0.5);
-                assert_eq!(v.uniforms[1].get_min(), 0.0);
-                assert_eq!(v.uniforms[1].get_max(), 1.0);
+                assert_eq!(v.uniforms[1].is_param(), true);
+                assert_eq!(v.uniforms[1].get_default_value(), UniformValue::Float32(0.5));
+                assert_eq!(v.uniforms[1].get_min(), Some(UniformValue::Float32(0.0)));
+                assert_eq!(v.uniforms[1].get_max(), Some(UniformValue::Float32(1.0)));
 
                 Ok(())
             }
-            Err(e) => Err(e)
+            Err(e) => {
+                println!("err {}", e);
+                println!("err source {:?}", e.source());
+                Err(e)
+            }
         }
     }
 

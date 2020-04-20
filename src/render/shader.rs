@@ -7,12 +7,13 @@ use gl;
 use std;
 use std::ffi::{CStr, CString};
 use nalgebra_glm;
+use crate::file::shader_description_parser::ShaderDescription;
 
 pub struct Program {
     gl: gl::Gl,
     id: gl::types::GLuint,
     uniforms: std::collections::HashMap<GLint, Uniform>,
-    // u_offset : gl::types::GLint,
+    shader_description: Box<ShaderDescription>
     // u_offset_value : f32,
     // u_vp : gl::types::GLint,
     // pub u_vp_value : glm::Mat4,
@@ -235,8 +236,14 @@ impl Program {
             // u_vp : u_vp_loc,
             // u_vp_value : glm::translate(&glm::identity(), &glm::vec3(0.5, 0., 0.)) 
         })
+
+        
+
     }
 
+    pub fn from_shader_description(shader_description: &ShaderDescription) -> Self {
+
+    }
 
     pub fn get_attribute_location(&self, attribute_name: &String) -> Result<GLint, ()> {
         let mut string = attribute_name.clone();
