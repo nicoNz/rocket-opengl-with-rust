@@ -1,6 +1,9 @@
 
 
 
+use crate::file::util::get_cstr_from_path;
+use crate::render::uniform::Uniform;
+use crate::render::uniform::UniformTypedValue;
 use gl::types::GLint;
 use std::fmt::Display;
 use gl;
@@ -8,50 +11,106 @@ use std;
 use std::ffi::{CStr, CString};
 use nalgebra_glm;
 use crate::file::shader_description_parser::ShaderDescription;
+use crate::file::shader_description_parser::UniformDescription;
+use crate::render::program::Program;
+use crate::render::raw_shader::RawShader;
 
 
-pub struct Uniform {
-    loc: gl::types::GLint,
-    value: UniformTypedValue,
-    name: String,
-    role: UniformRole
+
+pub struct Shader {
+    program: Program,
+    vertex_shader: RawShader,
+    fragment_shader: RawShader,
+    uniforms: std::collections::HashMap<GLint, Uniform>,
+    shader_description: ShaderDescription
 }
 
-pub enum UniformRole {
-    Color,
-    Int,
-    Float,
-    Camera,
-    Transform,
-    Point2D,
-    Point3D
-}
 
-impl Uniform {
-    pub fn load_into_program(&self, gl: &gl::Gl) {
-        unsafe {
-            self.value.load_into_program(gl, self.loc);
+/**
+ *     pub fn set_uniform(&mut self, loc: GLint, value: UniformValue) {
+        
+        if let Some(v) = self.uniforms.get_mut(&loc) {
+            v.value = value;
+        } else {
+            println!("key {} did not exist", loc);
+        };
+    }
+ */
+type Res = std::collections::HashMap<String, i32>;
+impl Shader {
+    
+    pub fn from_json(gl: &gl::Gl, path: &String) -> Result<Self, String> {
+        match ShaderDescription::from_file(path) {
+            Ok(ref shader_description) => {
+                Self::from_shader_description(gl, shader_description)
+            },
+            Err(e) => {
+                Err(String::from(std::fmt::format(format_args!( "fail to create shader, {}", e))))
+            }
+        }
+
+    }
+    pub fn get_uniform_to_key_map(&self) -> Res {
+        let map: Res = Res::new();
+        for (key, value) in self.uniforms.iter() {
+            map.insert(value.name.clone(), *key);
+        }
+        map
+    }
+    pub fn use_shader(&mut self) {
+        self.program.set_used();
+    }
+
+    pub fn set_uniform_value(&self, i: i32, v: UniformTypedValue) {
+        if let Some(uniform) = self.uniforms.get(&i) {
+            uniform.load_into_program(self.gl)
         }
     }
-}
-
-pub enum UniformTypedValue {
-    Mat4(Box<nalgebra_glm::Mat4>),
-    Vec3(Box<nalgebra_glm::Vec3>)
-}
-
-impl UniformTypedValue {
-    pub fn load_into_program(&self, gl: &gl::Gl, loc: gl::types::GLint) {
-        match self {
-            UniformTypedValue::Mat4(v) => {
-                unsafe {
-                    gl.UniformMatrix4fv(loc, 1, gl::FALSE, (*v).as_ptr());
+    pub fn from_shader_description(gl: &gl::Gl, shader_description: &ShaderDescription) -> Result<Self, String> {
+        match (
+            shader_description.vertex_shader_file,
+            shader_description.fragment_shader_file 
+        ) {
+            (
+                Some(fragment_shader_file), 
+                Some(vertex_shader_file)
+            ) => {
+                match (
+                    get_cstr_from_path(&vertex_shader_file),
+                    get_cstr_from_path(&fragment_shader_file)
+                ) {
+                    (
+                        Ok(vertex_source),
+                        Ok(fragment_source)
+                    ) => {
+                        match (
+                            RawShader::from_vert_source(gl, vertex_source.as_c_str()),
+                            RawShader::from_frag_source(gl, fragment_source.as_c_str())
+                        ) {
+                            (
+                                Ok(vertex_shader),
+                                Ok(fragment_shader)
+                            ) => {
+                                let program = Program::from_shaders(gl, &[vertex_shader, fragment_shader]);
+                                Ok(
+                                    Self {
+                                        fragment_shader,
+                                        vertex_shader,
+                                        program,
+                                        uniforms,
+                                        shader_description : shader_description.clone()
+    
+                                    }
+                                )
+                            }
+                        }
+                        
+                    },
+                    _ => Err(String::from("at least on shader source asn't found from file path"))
                 }
             },
-            UniformTypedValue::Vec3(v) => {
-                unsafe {
-                    gl.Uniform3fv(loc, 1, (*v).as_ptr());
-                }
+            _ => {
+                Err(String::from("raw shaders were missing from description"))
             }
         }
     }
@@ -59,41 +118,11 @@ impl UniformTypedValue {
 
 
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
-pub enum UniformKey {
-    DirectionnalLightDirection,
-    DirectionnalLightColor,
-    M,
-    V,
-    P,
-    VP,
-}
-
-impl Display for UniformKey {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            UniformKey::DirectionnalLightColor => write!(f, "Directionnal Light Color"),
-            UniformKey::DirectionnalLightDirection => write!(f, "Directionnal Light Direction"),
-            UniformKey::M => write!(f, "Model Matrix"),
-            UniformKey::V => write!(f, "View Matrix"),
-            UniformKey::P => write!(f, "Projection Matrix"),
-            UniformKey::VP => write!(f, "ViewProjection Matrix"),
-        }
-    }
-}
 
 pub struct Material {
 
 }
 
-pub fn get_cstr_from_path(path: &String) -> Result<CString, String> {
-    match std::fs::read(path) {
-        Ok(content) => {
-            CString::new(content).or(Err(String::from("path error")))
-        },
-        Err(e) => Err(String::from("path error"))
-    }
-}
 
 
 
@@ -103,11 +132,4 @@ pub fn get_cstr_from_path(path: &String) -> Result<CString, String> {
 
 
 
-fn create_whitespace_cstring_with_len(len: usize) -> CString {
-    // allocate buffer of correct size
-    let mut buffer: Vec<u8> = Vec::with_capacity(len + 1);
-    // fill it with len spaces
-    buffer.extend([b' '].iter().cycle().take(len));
-    // convert buffer to CString
-    unsafe { CString::from_vec_unchecked(buffer) }
-}
+

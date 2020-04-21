@@ -16,12 +16,7 @@ pub mod file;
 
 
 use render::mesh::Mesh;
-use render::shader::{
-    Shader,
-    Program,
-    UniformTypedValue,
-    UniformRole
-};
+use crate::render::shader::Shader;
 
 use network::http_receiver::{
     launch_http,
@@ -100,7 +95,6 @@ impl WindowApp for App {
         }
     }
 }
-
 fn main() {
 
     let receiver = launch_http();
@@ -108,32 +102,29 @@ fn main() {
     let mut app_runner =  WindowAppRunner::new( move |gl: &gl::Gl| {
         let camera = camera::Camera::from_position_and_look_at(&glm::vec3(-6.0,0.0, 5.0), &glm::vec3(0., 0., 0.));
 
-        use std::ffi::CString;
-        let vert_shader =
-            Shader::from_vert_source(&gl ,&CString::new(include_str!("triangle.vert")).unwrap())
-                .unwrap();
-    
-        let frag_shader =
-            Shader::from_frag_source(&gl, &CString::new(include_str!("triangle.frag")).unwrap())
-                .unwrap();
-    
-        let mut program = Program::from_shaders(&gl, &[vert_shader, frag_shader]).unwrap();
+        let shader = match Shader::from_json(&String::from("my_shader.json")) {
+            Ok(shader) => shader,
+            Err(e) => {
+                panic!("fail to create shader from json; Err : {}", e)
+            } 
+        };
 
-        let m = program.register_uniform(
-            &String::from("M"),
-            UniformTypedValue::Mat4(Box::new(glm::identity::<f32, glm::U4>())),
-            UniformRole::Transform
-        );
+        // let m = program.register_uniform(
+        //     &String::from("M"),
+        //     UniformTypedValue::Mat4(Box::new(glm::identity::<f32, glm::U4>())),
+        //     UniformRole::Transform
+        // );
 
-        let vp = program.register_uniform(
-            &String::from("VP"),
-            UniformTypedValue::Mat4(Box::new(glm::identity::<f32, glm::U4>())),
-            UniformRole::Camera
-        );
-    
-        program.set_used();
+        // let vp = program.register_uniform(
+        //     &String::from("VP"),
+        //     UniformTypedValue::Mat4(Box::new(glm::identity::<f32, glm::U4>())),
+        //     UniformRole::Camera
+        // );
+        let key_map = shader.get_uniform_to_key_map();
         
-        program.set_uniform(vp, UniformTypedValue::Mat4(Box::new(camera.get_view_projection())));
+        let vp = key_map.get("VP");
+        shader.set_used();
+        shader.set_uniform(vp, UniformTypedValue::Mat4(Box::new(camera.get_view_projection())));
     
         let mesh = match get_array_data(String::from("vertdata.json")) {
             Ok(ref descr) => {

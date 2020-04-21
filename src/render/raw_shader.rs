@@ -1,3 +1,6 @@
+use crate::render::gl_error::create_whitespace_cstring_with_len;
+use std::ffi::{CStr, CString};
+
 pub struct RawShader {
     gl: gl::Gl,
     id: gl::types::GLuint,
@@ -67,3 +70,4 @@ impl Drop for RawShader {
         }
     }
 }
+

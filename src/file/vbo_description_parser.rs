@@ -4,8 +4,7 @@ use std::fs;
 
 use std::collections::HashMap;
 use gl;
-use std::clone::Clone;
-use std::marker::Copy;
+
 
 enum MakeVbosFromJsonDescriptionErrorReason {
     FailToGetVertexCount,

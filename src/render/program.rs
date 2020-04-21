@@ -1,46 +1,39 @@
+
+use gl;
+use gl::types::GLint;
+
+use crate::render::uniform::UniformValue;
+use crate::render::raw_shader::RawShader;
+use crate::render::uniform::Uniform;
+use crate::file::shader_description_parser::ShaderDescription;
+use crate::file::shader_description_parser::UniformDescription;
+
+
+use crate::file::util::*;
+use std::ffi::{CStr};
+use crate::render::gl_error::create_whitespace_cstring_with_len;
+
 pub struct Program {
     gl: gl::Gl,
     id: gl::types::GLuint,
-    uniforms: std::collections::HashMap<GLint, Uniform>,
-    shader_description: Box<ShaderDescription>
-    // u_offset_value : f32,
-    // u_vp : gl::types::GLint,
-    // pub u_vp_value : glm::Mat4,
-}
-
-impl Drop for Program {
-    fn drop(&mut self) {
-        unsafe {
-            self.gl.DeleteProgram(self.id);
-        }
-    }
 }
 
 
 impl Program {
-    pub fn set_uniform(&mut self, loc: GLint, value: UniformTypedValue) {
+
+
+    pub fn register_uniforms() {
         
-        if let Some(v) = self.uniforms.get_mut(&loc) {
-            v.value = value;
-        } else {
-            println!("key {} did not exist", loc);
-        };
-        //std::collections::HashMap<UniformRole, UniformRole>
     }
 
-    pub fn register_uniform(&mut self, location_name: &String, value: UniformTypedValue, role: UniformRole) -> GLint {
-        let loc = self.get_uniform_location(location_name);
+    pub fn register_uniform(&mut self, uniform_description: UniformDescription) -> GLint {
+        let loc = self.get_uniform_location(uniform_description.name);
         match loc {
             Ok(loc)=> {
                 println!("name {} found at loc {}", location_name, loc);
                 if !self.uniforms.insert(
                     loc, 
-                    Uniform {
-                        value,
-                        loc,
-                        name: location_name.clone(),
-                        role 
-                    }
+                    Uniform::from_uniform_description(uniform_description)
                 ).is_none() {
                     println!("Error while trying to get location of {}, key {} already exist",location_name, loc)
                 }
@@ -50,7 +43,7 @@ impl Program {
         }
     }
     
-    pub fn from_shaders(gl: &gl::Gl, shaders: &[Shader]) -> Result<Program, String> {
+    pub fn from_shaders(gl: &gl::Gl, shaders: &[RawShader]) -> Result<Program, String> {
         let program_id = unsafe { gl.CreateProgram() };
 
         for shader in shaders {
@@ -95,56 +88,13 @@ impl Program {
         }
        
 
-        Ok(Program { 
-            uniforms : std::collections::HashMap::new(),
+        Ok(Program {
             gl : gl.clone(),
             id: program_id,
-            // u_offset : u_offset_loc,
-            // u_offset_value : 0.0,
-            // u_vp : u_vp_loc,
-            // u_vp_value : glm::translate(&glm::identity(), &glm::vec3(0.5, 0., 0.)) 
         })
     }
 
-    pub fn from_shader_description(gl: &gl::Gl, shader_description: &ShaderDescription) -> Result<Self, String> {
-        match (
-            shader_description.vertex_shader_file,
-            shader_description.fragment_shader_file 
-        ) {
-            (
-                Some(fragment_shader_file), 
-                Some(vertex_shader_file)
-            ) => {
-                match (
-                    get_cstr_from_path(&vertex_shader_file),
-                    get_cstr_from_path(&fragment_shader_file)
-                ) {
-                    (
-                        Ok(vertex_source),
-                        Ok(fragment_source)
-                    ) => {
-                        match (
-                            Shader::from_vert_source(gl, vertex_source.as_c_str()),
-                            Shader::from_frag_source(gl, fragment_source.as_c_str())
-                        ) {
-                            (
-                                Ok(vertex_shader),
-                                Ok(fragmentShader)
-                            ) => {
-                                Self::from_shaders(gl, &[vertex_shader, fragmentShader])
-                            }
-                        }
-                        
-                    },
-                    _ => Err(String::from("at least on shader source asn't found from file path"))
-                }
-            },
-            _ => {
-                Err(String::from("raw shaders were missing from description"))
-            }
-        }
-    }
-
+    
     pub fn get_attribute_location(&self, attribute_name: &String) -> Result<GLint, ()> {
         let mut string = attribute_name.clone();
         string.push('\0');
@@ -206,3 +156,12 @@ impl Program {
         }
     }
 }
+
+impl Drop for Program {
+    fn drop(&mut self) {
+        unsafe {
+            self.gl.DeleteProgram(self.id);
+        }
+    }
+}
+
