@@ -206,12 +206,12 @@ type Uniforms = Vec<UniformDescription>;
 
 
 pub struct ShaderDescription {
-    name: String,
-    fragment_shader_raw: Option<String>,
-    vertex_shader_raw: Option<String>,
-    fragment_shader_file: Option<String>,
-    vertex_shader_file: Option<String>,
-    uniforms: Uniforms,
+    pub name: String,
+    pub fragment_shader_raw: Option<String>,
+    pub vertex_shader_raw: Option<String>,
+    pub fragment_shader_file: Option<String>,
+    pub vertex_shader_file: Option<String>,
+    pub uniforms: Uniforms,
 }
 
 
