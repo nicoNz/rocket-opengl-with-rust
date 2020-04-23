@@ -17,6 +17,7 @@ pub mod file;
 
 use render::mesh::Mesh;
 use crate::render::shader::Shader;
+use crate::render::uniform::UniformValue;
 
 use network::http_receiver::{
     launch_http,
@@ -39,7 +40,6 @@ struct App {
     mesh: Mesh,
     camera: Camera,
     receiver: std::sync::mpsc::Receiver<network::http_receiver::Msg>,
-    m: GLint,
     vp: GLint
     //program: Option<Box<Program>>
 }
@@ -60,9 +60,7 @@ impl WindowApp for App {
                     match &mut self.mesh.program {
                         Some(program) => program.set_uniform(
                             self.vp,
-                            UniformTypedValue::Mat4(Box::new(
-                                camera.get_view_projection()
-                            ))
+                            UniformValue::Mat4(camera.get_view_projection())
                         ),
                         _ => println!("err")
                     }
@@ -102,33 +100,27 @@ fn main() {
     let mut app_runner =  WindowAppRunner::new( move |gl: &gl::Gl| {
         let camera = camera::Camera::from_position_and_look_at(&glm::vec3(-6.0,0.0, 5.0), &glm::vec3(0., 0., 0.));
 
-        let shader = match Shader::from_json(&String::from("my_shader.json")) {
+        let shader = match Shader::from_json(gl, &String::from("my_shader.json")) {
             Ok(shader) => shader,
             Err(e) => {
                 panic!("fail to create shader from json; Err : {}", e)
             } 
         };
 
-        // let m = program.register_uniform(
-        //     &String::from("M"),
-        //     UniformTypedValue::Mat4(Box::new(glm::identity::<f32, glm::U4>())),
-        //     UniformRole::Transform
-        // );
-
-        // let vp = program.register_uniform(
-        //     &String::from("VP"),
-        //     UniformTypedValue::Mat4(Box::new(glm::identity::<f32, glm::U4>())),
-        //     UniformRole::Camera
-        // );
         let key_map = shader.get_uniform_to_key_map();
+        let vp = *key_map.get("VP").unwrap_or(&-1);
+        if vp < 0 {
+            panic!("VP not found is shader cause panic");
+        }
+
         
-        let vp = key_map.get("VP");
-        shader.set_used();
-        shader.set_uniform(vp, UniformTypedValue::Mat4(Box::new(camera.get_view_projection())));
+        shader.use_shader();
+        shader.set_uniform_value(vp, UniformValue::Mat4(camera.get_view_projection()));
     
         let mesh = match get_array_data(String::from("vertdata.json")) {
             Ok(ref descr) => {
-                Mesh::from_description(&gl, descr, Some(Box::new(program)))
+                // TODO => Mesh should use the shader description for double checking
+                Mesh::from_description(&gl, descr, Some(Box::new(shader.program)))
             },
             Err(e) => {
                 panic!("fail to get buffers");
@@ -140,7 +132,6 @@ fn main() {
                 camera : Camera::from_position_and_look_at(&glm::vec3(-6.0,0.0, 5.0), &glm::vec3(0., 0., 0.)),
                 receiver,
                 mesh,
-                m,
                 vp
             }
         )

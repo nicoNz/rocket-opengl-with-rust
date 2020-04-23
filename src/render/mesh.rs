@@ -5,7 +5,7 @@ use crate::render::vbo::{
     AllowedBufferType
 };
 use crate::render::vao::Vao;
-use crate::render::shader::Program;
+use crate::render::program::Program;
 use gl;
 
 use std::vec::Vec;

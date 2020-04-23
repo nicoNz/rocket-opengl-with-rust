@@ -1,4 +1,7 @@
 
+use crate::render::uniform::UniformValue;
+use crate::render::uniform::UniformType;
+//use crate::render::shader::Shader;
 use std::collections::HashMap;
 use crate::file::json_parser::{from_file_name, JsonToFileError};
 use json::{
@@ -40,38 +43,12 @@ pub enum ShaderSource {
     File(String),
     Raw(String)
 }
-#[derive(Debug, PartialEq)]
-pub enum UniformValue {
-    Float32(f32),
-    Mat4(glm::Mat4)
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub enum UniformType {
-    Float32,
-    Mat4
-}
 
 pub enum UniformParserError {
     FailToCreateUniformTypeFromString
 }
 
-impl UniformType {
-    pub fn from_string(type_name: &String) -> Result<Self, UniformParserError> {
-        match type_name.as_str() {
-            "float32" => Ok(Self::Float32),
-            "mat4" => Ok(Self::Mat4),
-            _ => Err(UniformParserError::FailToCreateUniformTypeFromString)
-        }
-    }
 
-    pub fn to_string(&self) -> String {
-        match self {
-            Self::Float32 => String::from("float32"),
-            Self::Mat4 => String::from("mat4")
-        }
-    }
-}
 
 pub enum Role {
     VP,
@@ -98,7 +75,7 @@ impl UniformDescriptionF32 {
     ) -> Self {
         Self {
             name,
-            uniform_type: UniformType::Float32,
+            uniform_type: UniformType::F32,
             is_param,
             default_value,
             min,
@@ -123,7 +100,7 @@ impl UniformDescriptionMat4 {
     ) -> Self {
         Self {
             name,
-            uniform_type: UniformType::Float32,
+            uniform_type: UniformType::F32,
             is_param,
             default_value : glm::identity(),
         }
@@ -144,19 +121,19 @@ impl InnerUniformDescription for UniformDescriptionF32 {
         &self.name
     }
     fn get_uniform_type(&self) -> UniformType {
-        UniformType::Float32
+        UniformType::F32
     }
     fn is_param(&self) -> bool {
         self.is_param
     }
     fn get_default_value(&self) -> UniformValue {
-        UniformValue::Float32(self.default_value)
+        UniformValue::F32(self.default_value)
     }
     fn get_min(&self) -> Option<UniformValue> {
-        Some(UniformValue::Float32(self.min))
+        Some(UniformValue::F32(self.min))
     }
     fn get_max(&self) -> Option<UniformValue> {
-        Some(UniformValue::Float32(self.max))
+        Some(UniformValue::F32(self.max))
     }
 }
 
@@ -214,8 +191,25 @@ impl UniformDescription {
     }
 }
 
+#[derive(Clone)]
+struct UniformDescriptions (Vec<UniformDescription>);
 
-type Uniforms = Vec<UniformDescription>;
+impl UniformDescriptions {
+    pub fn new() -> Self {
+        Self {
+            0 : Vec::new()
+        }
+    }
+
+    pub fn push(&mut self, uniform_description: UniformDescription) {
+        self.0.push(uniform_description);
+    }
+
+    pub fn instanciate_all(gl: &gl::Gl, shader_description: ShaderDescription) {
+
+    }
+}
+
 // impl Uniforms {
 //     pub fn new() -> Self {
 //         Self(Vec::<UniformDescription>::new())
@@ -243,7 +237,7 @@ pub struct ShaderDescription {
     pub vertex_shader_raw: Option<String>,
     pub fragment_shader_file: Option<String>,
     pub vertex_shader_file: Option<String>,
-    pub uniforms: Uniforms,
+    pub uniforms: UniformDescriptions,
 }
 
 
@@ -336,7 +330,7 @@ fn get_f32_from_field_name(json: &JsonValue, name: &str) -> Result<f32, ShaderDe
 fn get_uniform(json: &JsonValue) -> Result<UniformDescription, ShaderDescriptionFromFileError> {
     
     match get_type(json)? {
-        UniformType::Float32 => {
+        UniformType::F32 => {
             return Ok (
                 UniformDescription::F32(
                     UniformDescriptionF32::new(
@@ -365,7 +359,7 @@ fn get_uniform(json: &JsonValue) -> Result<UniformDescription, ShaderDescription
 
 
 
-fn get_uniforms(json: &JsonValue) -> Result<Uniforms, ShaderDescriptionFromFileError> {
+fn get_uniforms(json: &JsonValue) -> Result<UniformDescriptions, ShaderDescriptionFromFileError> {
     let uniforms = &json["uniforms"];
     if(uniforms.is_array()) {
         
@@ -374,7 +368,7 @@ fn get_uniforms(json: &JsonValue) -> Result<Uniforms, ShaderDescriptionFromFileE
                 JsonValue::Array(uniforms_as_json_array) => {
                  
                         //uniforms.into_iter().map(|json|{get_uniform(&json)}).collect()
-                        let mut uniforms = Uniforms::new();
+                        let mut uniforms = UniformDescriptions::new();
                         for uniform_as_json_object in uniforms_as_json_array {
                             let uniform = get_uniform(&uniform_as_json_object)?;
                             uniforms.push(uniform);

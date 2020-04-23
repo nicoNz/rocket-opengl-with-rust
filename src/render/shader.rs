@@ -3,7 +3,7 @@
 
 use crate::file::util::get_cstr_from_path;
 use crate::render::uniform::Uniform;
-use crate::render::uniform::UniformTypedValue;
+use crate::render::uniform::UniformValue;
 use gl::types::GLint;
 use std::fmt::Display;
 use gl;
@@ -18,7 +18,7 @@ use crate::render::raw_shader::RawShader;
 
 
 pub struct Shader {
-    program: Program,
+    pub program: Program,
     vertex_shader: RawShader,
     fragment_shader: RawShader,
     uniforms: std::collections::HashMap<GLint, Uniform>,
@@ -61,9 +61,9 @@ impl Shader {
         self.program.set_used();
     }
 
-    pub fn set_uniform_value(&self, i: i32, v: UniformTypedValue) {
+    pub fn set_uniform_value(&self, i: i32, v: UniformValue) {
         if let Some(uniform) = self.uniforms.get(&i) {
-            uniform.load_into_program(self.gl)
+            uniform.load_into_program()
         }
     }
     pub fn from_shader_description(gl: &gl::Gl, shader_description: &ShaderDescription) -> Result<Self, String> {
@@ -92,16 +92,21 @@ impl Shader {
                                 Ok(fragment_shader)
                             ) => {
                                 let program = Program::from_shaders(gl, &[vertex_shader, fragment_shader]);
-                                Ok(
-                                    Self {
-                                        fragment_shader,
-                                        vertex_shader,
-                                        program,
-                                        uniforms,
-                                        shader_description : shader_description.clone()
-    
-                                    }
-                                )
+                                match program {
+                                    Ok(program) => {
+                                        Ok(
+                                            Self {
+                                                fragment_shader,
+                                                vertex_shader,
+                                                program,
+                                                uniforms = shader_description.uniforms,
+                                                shader_description : shader_description.clone()
+            
+                                            }
+                                        )
+                                    },
+                                    Err(e) => Err(e)
+                                }
                             }
                         }
                         

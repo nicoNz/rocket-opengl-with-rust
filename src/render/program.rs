@@ -2,16 +2,16 @@
 use gl;
 use gl::types::GLint;
 
-use crate::render::uniform::UniformValue;
 use crate::render::raw_shader::RawShader;
 use crate::render::uniform::Uniform;
-use crate::file::shader_description_parser::ShaderDescription;
 use crate::file::shader_description_parser::UniformDescription;
-
-
-use crate::file::util::*;
-use std::ffi::{CStr};
 use crate::render::gl_error::create_whitespace_cstring_with_len;
+
+use std::ffi::{CStr};
+
+use crate::file::shader_description_parser::ShaderDescription;
+use crate::render::uniform::UniformValue;
+use crate::file::util::*;
 
 pub struct Program {
     gl: gl::Gl,
@@ -22,26 +22,26 @@ pub struct Program {
 impl Program {
 
 
-    pub fn register_uniforms() {
+    // pub fn register_uniforms() {
         
-    }
+    // }
 
-    pub fn register_uniform(&mut self, uniform_description: UniformDescription) -> GLint {
-        let loc = self.get_uniform_location(uniform_description.name);
-        match loc {
-            Ok(loc)=> {
-                println!("name {} found at loc {}", location_name, loc);
-                if !self.uniforms.insert(
-                    loc, 
-                    Uniform::from_uniform_description(uniform_description)
-                ).is_none() {
-                    println!("Error while trying to get location of {}, key {} already exist",location_name, loc)
-                }
-                loc
-            },
-            Err(())=>panic!("panic because the behavious when a location is not found is not implemented")
-        }
-    }
+    // pub fn register_uniform(&mut self, uniform_description: UniformDescription) -> GLint {
+    //     let loc = self.get_uniform_location(uniform_description.name);
+    //     match loc {
+    //         Ok(loc)=> {
+    //             println!("name {} found at loc {}", location_name, loc);
+    //             if !self.uniforms.insert(
+    //                 loc, 
+    //                 Uniform::from_uniform_description(uniform_description)
+    //             ).is_none() {
+    //                 println!("Error while trying to get location of {}, key {} already exist",location_name, loc)
+    //             }
+    //             loc
+    //         },
+    //         Err(())=>panic!("panic because the behavious when a location is not found is not implemented")
+    //     }
+    // }
     
     pub fn from_shaders(gl: &gl::Gl, shaders: &[RawShader]) -> Result<Program, String> {
         let program_id = unsafe { gl.CreateProgram() };
