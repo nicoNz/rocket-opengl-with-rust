@@ -1,5 +1,5 @@
 use crate::render::gl_error::create_whitespace_cstring_with_len;
-use std::ffi::{CStr, CString};
+use std::ffi::{CStr};
 
 pub struct RawShader {
     gl: gl::Gl,

@@ -1,15 +1,15 @@
 
 
 
+//use std::fmt::Display;
+//use std::ffi::{CStr, CString};
+//use nalgebra_glm;
 use crate::file::util::get_cstr_from_path;
 use crate::render::uniform::Uniform;
 use crate::render::uniform::UniformValue;
 use gl::types::GLint;
-use std::fmt::Display;
 use gl;
 use std;
-use std::ffi::{CStr, CString};
-use nalgebra_glm;
 use crate::file::shader_description_parser::ShaderDescription;
 use crate::file::shader_description_parser::UniformDescription;
 use crate::render::program::Program;
@@ -75,13 +75,13 @@ impl Shader {
 
     }
     pub fn get_uniform_to_key_map(&self) -> Res {
-        let map: Res = Res::new();
+        let mut  map: Res = Res::new();
         for (key, value) in self.uniforms.iter() {
             map.insert(value.name.clone(), *key);
         }
         map
     }
-    pub fn use_shader(&mut self) {
+    pub fn use_shader(&self) {
         self.program.use_program();
     }
 
@@ -112,8 +112,8 @@ impl Shader {
 
     pub fn from_shader_description(gl: &gl::Gl, shader_description: &ShaderDescription) -> Result<Self, String> {
         match (
-            shader_description.vertex_shader_file,
-            shader_description.fragment_shader_file 
+            shader_description.vertex_shader_file.as_ref(),
+            shader_description.fragment_shader_file.as_ref() 
         ) {
             (
                 Some(fragment_shader_file), 
@@ -135,15 +135,15 @@ impl Shader {
                                 Ok(vertex_shader),
                                 Ok(fragment_shader)
                             ) => {
-                                let program = Program::from_shaders(gl, &[vertex_shader, fragment_shader]);
+                                let program = Program::from_shaders(gl, &[&vertex_shader, &fragment_shader]);
                                 match program {
                                     Ok(program) => {
                                         Ok(
                                             Self {
                                                 fragment_shader,
                                                 vertex_shader,
-                                                program,
                                                 uniforms : shader_description.uniforms.instanciate_all(&program),
+                                                program,
                                                 shader_description : shader_description.clone()
                                                 
             
@@ -152,9 +152,9 @@ impl Shader {
                                     },
                                     Err(e) => Err(e)
                                 }
-                            }
-                        }
-                        
+                            },
+                            _ => Err(String::from("at least on shader source asn't found from file path"))   
+                        }  
                     },
                     _ => Err(String::from("at least on shader source asn't found from file path"))
                 }

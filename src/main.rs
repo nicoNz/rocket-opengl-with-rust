@@ -30,6 +30,7 @@ use window_app::{
 };
 
 use camera::Camera;
+use std::rc::Rc;
 
 //use file::json_parser ;
 
@@ -57,13 +58,10 @@ impl WindowApp for App {
                         PARAM::X => camera.set_position_x(event.value),
                         PARAM::Y => camera.set_position_y(event.value)
                     };
-                    match &mut self.mesh.program {
-                        Some(program) => program.set_uniform(
-                            self.vp,
-                            UniformValue::Mat4(camera.get_view_projection())
-                        ),
-                        _ => println!("err")
-                    }
+                    self.mesh.shader.set_uniform_value(
+                        self.vp,
+                        UniformValue::Mat4(camera.get_view_projection())
+                    );
                 }
                 TARGET::MODEL => {
                     // match &mut self.mesh.program {
@@ -113,14 +111,13 @@ fn main() {
             panic!("VP not found is shader cause panic");
         }
 
-        
         shader.use_shader();
         shader.set_uniform_value(vp, UniformValue::Mat4(camera.get_view_projection()));
     
         let mesh = match get_array_data(String::from("vertdata.json")) {
             Ok(ref descr) => {
                 // TODO => Mesh should use the shader description for double checking
-                Mesh::from_description(&gl, descr, Some(Box::new(shader.program)))
+                Mesh::from_description(&gl, descr, &Rc::new(shader))
             },
             Err(e) => {
                 panic!("fail to get buffers");

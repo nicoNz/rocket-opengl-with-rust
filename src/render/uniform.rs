@@ -1,6 +1,6 @@
 //use std::fmt::Display;
+//use nalgebra_glm::Mat4;
 use gl;
-use nalgebra_glm::Mat4;
 use crate::render::program::Program;
 use crate::file::shader_description_parser::UniformDescription;
 
@@ -54,7 +54,7 @@ impl UniformType {
 
 
 /// different roles that helps a user to define how to generate an interface to modify those values
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub enum UniformRole {
     ColorRGB,
     ColorRGBA,

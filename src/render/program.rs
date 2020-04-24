@@ -2,16 +2,17 @@
 use gl;
 use gl::types::GLint;
 
+//use crate::render::uniform::Uniform;
+//use crate::file::shader_description_parser::ShaderDescription;
+//use crate::file::shader_description_parser::UniformDescription;
+//use crate::render::uniform::UniformValue;
+//use crate::file::util::*;
+
 use crate::render::raw_shader::RawShader;
-use crate::render::uniform::Uniform;
-use crate::file::shader_description_parser::UniformDescription;
 use crate::render::gl_error::create_whitespace_cstring_with_len;
 
 use std::ffi::{CStr};
 
-use crate::file::shader_description_parser::ShaderDescription;
-use crate::render::uniform::UniformValue;
-use crate::file::util::*;
 
 pub struct Program {
     pub gl: gl::Gl,
@@ -27,7 +28,7 @@ impl Program {
     // }
 
     
-    pub fn from_shaders(gl: &gl::Gl, shaders: &[RawShader]) -> Result<Program, String> {
+    pub fn from_shaders(gl: &gl::Gl, shaders: &[&RawShader]) -> Result<Program, String> {
         let program_id = unsafe { gl.CreateProgram() };
 
         for shader in shaders {

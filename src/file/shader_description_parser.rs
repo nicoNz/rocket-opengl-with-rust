@@ -6,13 +6,14 @@ use crate::render::uniform::Uniform;
 use crate::render::shader::Uniforms;
 use crate::render::program::Program;
 use std::collections::HashMap;
-use crate::file::json_parser::{from_file_name, JsonToFileError};
+use crate::file::json_parser::{from_file_name};
 use json::{
     JsonValue
 };
 
 
 #[derive(Debug, Clone)]
+pub 
 enum ShaderDescriptionFromFileError {
     ShaderNameNotFound,
     UniformNameNotFound,
@@ -172,6 +173,7 @@ pub enum UniformDescription {
     Mat4(UniformDescriptionMat4)
 }
 
+
 impl UniformDescription {
     pub fn get_name(&self) -> &String {
         match self {
@@ -217,7 +219,7 @@ impl UniformDescription {
 
 
 #[derive(Clone)]
-struct UniformDescriptions (Vec<UniformDescription>);
+pub struct UniformDescriptions (Vec<UniformDescription>);
 
 impl UniformDescriptions {
     pub fn new() -> Self {
@@ -232,8 +234,8 @@ impl UniformDescriptions {
 
     pub fn instanciate_all(&self, program: &Program) -> Uniforms {
         let res = Uniforms::new();
-        for ref uniform_description in self.0 {
-            let u = Uniform::from_description_and_program(uniform_description, program);
+        for uniform_description in self.0.iter() {
+            let u = Uniform::from_description_and_program(&uniform_description, program);
         }
         res
     }
@@ -297,7 +299,7 @@ impl ShaderType {
     }
 }
 
-use std::error::Error;
+//use std::error::Error;
 
 /// return in a Result, the path and the raw content of a givent jsonObject in separate options
 /// will return an error if any of the path or content were found
