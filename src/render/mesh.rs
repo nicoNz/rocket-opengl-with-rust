@@ -119,8 +119,6 @@ impl Mesh {
                         panic!("Panic as no implementation was provide if the attribute location was not found \nfail to find {}", attribute_name);
                     }
                 }
-
-
             }
             None => {
                 println!("no material for vbo");
@@ -129,7 +127,7 @@ impl Mesh {
     }
 
     pub fn draw(&self) {
-        self.program.as_ref().unwrap().set_used();
+        self.program.as_ref().unwrap().use_program();
         self.vao.bind();
         unsafe {
             self.gl.DrawArrays(

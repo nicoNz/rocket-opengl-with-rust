@@ -1,7 +1,10 @@
 
 use crate::render::uniform::UniformValue;
 use crate::render::uniform::UniformType;
-//use crate::render::shader::Shader;
+use crate::render::uniform::UniformRole;
+use crate::render::uniform::Uniform;
+use crate::render::shader::Uniforms;
+use crate::render::program::Program;
 use std::collections::HashMap;
 use crate::file::json_parser::{from_file_name, JsonToFileError};
 use json::{
@@ -59,7 +62,7 @@ pub struct UniformDescriptionF32 {
     name: String,
     uniform_type: UniformType,
     is_param: bool,
-    //role: Option<Role>,
+    role: UniformRole,
     default_value: f32,
     min: f32,
     max: f32
@@ -70,6 +73,7 @@ impl UniformDescriptionF32 {
         name: String,
         is_param: bool,
         default_value: f32,
+        role: UniformRole,
         min: f32,
         max: f32
     ) -> Self {
@@ -79,7 +83,8 @@ impl UniformDescriptionF32 {
             is_param,
             default_value,
             min,
-            max
+            max,
+            role
         }
     }
 }
@@ -89,7 +94,7 @@ pub struct UniformDescriptionMat4 {
     name: String,
     uniform_type: UniformType,
     is_param: bool,
-    //role: Option<Role>,
+    role: UniformRole,
     default_value : glm::Mat4
 }
 
@@ -97,12 +102,14 @@ impl UniformDescriptionMat4 {
     pub fn new (
         name: String,
         is_param: bool,
+        role: UniformRole
     ) -> Self {
         Self {
             name,
             uniform_type: UniformType::F32,
             is_param,
             default_value : glm::identity(),
+            role
         }
     }
 }
@@ -166,20 +173,36 @@ pub enum UniformDescription {
 }
 
 impl UniformDescription {
-    pub fn get_name() {
-
+    pub fn get_name(&self) -> &String {
+        match self {
+            Self::F32(u)  => &u.name,
+            Self::Mat4(u) => &u.name,
+        }
     }
 
-    pub fn get_value_as_uniform_value() {
+    pub fn get__default_value_as_uniform_value(&self) -> UniformValue {
+        match self {
+            Self::F32(u)  => u.get_default_value(),
+            Self::Mat4(u) => u.get_default_value()
+        }
+    }
 
+    pub fn get_role(&self) -> UniformRole {
+        match self {
+            Self::F32(u)  => u.role,
+            Self::Mat4(u) => u.role
+        }
     }
 
     pub fn set_value_as_uniform_value() {
         
     }
 
-    pub fn get_is_param() {
-
+    pub fn get_is_param(&self) -> bool {
+        match self {
+            Self::F32(u)  => u.is_param(),
+            Self::Mat4(u) => u.is_param()
+        }
     }
 
     pub fn get_min() {
@@ -190,6 +213,8 @@ impl UniformDescription {
 
     }
 }
+
+
 
 #[derive(Clone)]
 struct UniformDescriptions (Vec<UniformDescription>);
@@ -205,8 +230,12 @@ impl UniformDescriptions {
         self.0.push(uniform_description);
     }
 
-    pub fn instanciate_all(gl: &gl::Gl, shader_description: ShaderDescription) {
-
+    pub fn instanciate_all(&self, program: &Program) -> Uniforms {
+        let res = Uniforms::new();
+        for ref uniform_description in self.0 {
+            let u = Uniform::from_description_and_program(uniform_description, program);
+        }
+        res
     }
 }
 
@@ -239,10 +268,6 @@ pub struct ShaderDescription {
     pub vertex_shader_file: Option<String>,
     pub uniforms: UniformDescriptions,
 }
-
-
-
-
 
 fn get_shader_name(json: &JsonValue) -> Result<String, ShaderDescriptionFromFileError> {
     match json["name"].as_str() {
@@ -337,8 +362,10 @@ fn get_uniform(json: &JsonValue) -> Result<UniformDescription, ShaderDescription
                         get_uniform_name(json)?,
                         get_is_param(json)?,
                         get_f32_from_field_name(json, "defaultValue")?,
+                        UniformRole::Float,
                         get_f32_from_field_name(json, "min")?,
                         get_f32_from_field_name(json, "max")?,
+
                     )
                 )
             )
@@ -349,6 +376,7 @@ fn get_uniform(json: &JsonValue) -> Result<UniformDescription, ShaderDescription
                     UniformDescriptionMat4::new(
                         get_uniform_name(json)?,
                         get_is_param(json)?,
+                        UniformRole::Camera
                     )
                 )
             )

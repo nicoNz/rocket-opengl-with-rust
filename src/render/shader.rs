@@ -14,14 +14,38 @@ use crate::file::shader_description_parser::ShaderDescription;
 use crate::file::shader_description_parser::UniformDescription;
 use crate::render::program::Program;
 use crate::render::raw_shader::RawShader;
+use std::collections::HashMap;
+//use std::iter::
+pub struct Uniforms {
+    collection: HashMap<GLint, Uniform>,
+    key_gen: i32
+}
 
-
+impl Uniforms {
+    pub fn new() -> Self {
+        Self {
+            collection : HashMap::new(),
+            key_gen : 0
+        }
+    }
+    pub fn iter(&self) -> std::collections::hash_map::Iter<i32, Uniform> {
+        self.collection.iter()
+    }
+    pub fn push(&mut self, uniform: Uniform) -> i32 {
+        self.key_gen += 1;
+        self.collection.insert(self.key_gen, uniform);
+        self.key_gen
+    }
+    pub fn get(&self, k: i32) -> Option<&Uniform>{
+        self.collection.get(&k)
+    }
+}
 
 pub struct Shader {
     pub program: Program,
     vertex_shader: RawShader,
     fragment_shader: RawShader,
-    uniforms: std::collections::HashMap<GLint, Uniform>,
+    uniforms: Uniforms,
     shader_description: ShaderDescription
 }
 
@@ -58,14 +82,34 @@ impl Shader {
         map
     }
     pub fn use_shader(&mut self) {
-        self.program.set_used();
+        self.program.use_program();
     }
 
     pub fn set_uniform_value(&self, i: i32, v: UniformValue) {
-        if let Some(uniform) = self.uniforms.get(&i) {
+        if let Some(uniform) = self.uniforms.get(i) {
             uniform.load_into_program()
         }
     }
+
+
+    pub fn register_uniform(&mut self, uniform_description: &UniformDescription) -> GLint {
+        let name = uniform_description.get_name();
+        let loc = self.program.get_uniform_location(name);
+        match loc {
+            Ok(loc)=> {
+                println!("name {} found at loc {}", name, loc);
+                if self.uniforms.push( 
+                    Uniform::from_description_and_program(uniform_description, &self.program)
+                ) >= 0 {
+                    println!("Error while trying to get location of {}, key {} already exist", name, loc)
+                }
+                loc
+            },
+            Err(())=>panic!("panic because the behavious when a location is not found is not implemented")
+        }
+    }
+
+
     pub fn from_shader_description(gl: &gl::Gl, shader_description: &ShaderDescription) -> Result<Self, String> {
         match (
             shader_description.vertex_shader_file,
@@ -99,8 +143,9 @@ impl Shader {
                                                 fragment_shader,
                                                 vertex_shader,
                                                 program,
-                                                uniforms = shader_description.uniforms,
+                                                uniforms : shader_description.uniforms.instanciate_all(&program),
                                                 shader_description : shader_description.clone()
+                                                
             
                                             }
                                         )

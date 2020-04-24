@@ -1,8 +1,8 @@
 //use std::fmt::Display;
 use gl;
 use nalgebra_glm::Mat4;
-
-
+use crate::render::program::Program;
+use crate::file::shader_description_parser::UniformDescription;
 
 pub struct UniformData {
     location: gl::types::GLuint,
@@ -54,6 +54,7 @@ impl UniformType {
 
 
 /// different roles that helps a user to define how to generate an interface to modify those values
+#[derive(Debug, PartialEq, Clone)]
 pub enum UniformRole {
     ColorRGB,
     ColorRGBA,
@@ -79,12 +80,42 @@ pub struct Uniform {
 
 
 impl Uniform {
+    pub fn new(
+        loc: gl::types::GLint,
+        value: UniformValue,
+        name: String,
+        role: UniformRole,
+        gl: gl::Gl
+    ) -> Self {
+        Self {
+            loc,
+            value,
+            name,
+            role,
+            gl
+        }
+    }
+    pub fn from_description_and_program(uniform_description: &UniformDescription, program: &Program) -> Self {
+        let name = uniform_description.get_name();
+        let loc = program.get_uniform_location(name);
+        Self::new (
+            loc.unwrap(), 
+            uniform_description.get__default_value_as_uniform_value(), 
+            name.clone(),
+            uniform_description.get_role(), 
+            program.gl.clone()
+        )
+    }
+
     pub fn load_into_program(&self) {
         unsafe {
             self.value.load_into_program(&self.gl, self.loc);
         }
     }
-    pub fn set_value(&self, )
+    pub fn set_value(&mut self, value: UniformValue) {
+        self.value = value;
+        self.load_into_program();
+    }
 }
 
 
@@ -97,9 +128,14 @@ impl UniformValue {
                     gl.UniformMatrix4fv(loc, 1, gl::FALSE, (*v).as_ptr());
                 }
             },
-            UniformValue::Vec3(v) => {
+            // UniformValue::Vec3(v) => {
+            //     unsafe {
+            //         gl.Uniform3fv(loc, 1, (*v).as_ptr());
+            //     }
+            // }
+            UniformValue::F32(v) => {
                 unsafe {
-                    gl.Uniform3fv(loc, 1, (*v).as_ptr());
+                    gl.Uniform1f(loc, *v);
                 }
             }
         }

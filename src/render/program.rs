@@ -14,7 +14,7 @@ use crate::render::uniform::UniformValue;
 use crate::file::util::*;
 
 pub struct Program {
-    gl: gl::Gl,
+    pub gl: gl::Gl,
     id: gl::types::GLuint,
 }
 
@@ -26,22 +26,6 @@ impl Program {
         
     // }
 
-    // pub fn register_uniform(&mut self, uniform_description: UniformDescription) -> GLint {
-    //     let loc = self.get_uniform_location(uniform_description.name);
-    //     match loc {
-    //         Ok(loc)=> {
-    //             println!("name {} found at loc {}", location_name, loc);
-    //             if !self.uniforms.insert(
-    //                 loc, 
-    //                 Uniform::from_uniform_description(uniform_description)
-    //             ).is_none() {
-    //                 println!("Error while trying to get location of {}, key {} already exist",location_name, loc)
-    //             }
-    //             loc
-    //         },
-    //         Err(())=>panic!("panic because the behavious when a location is not found is not implemented")
-    //     }
-    // }
     
     pub fn from_shaders(gl: &gl::Gl, shaders: &[RawShader]) -> Result<Program, String> {
         let program_id = unsafe { gl.CreateProgram() };
@@ -143,15 +127,11 @@ impl Program {
         self.id
     }
 
-    pub fn set_used(&self) {
+    pub fn use_program(&self) {
         unsafe {
             // self.gl.Uniform1f(self.u_offset, self.u_offset_value);
             // self.gl.UniformMatrix4fv(self.u_vp, 1, gl::FALSE, self.u_vp_value.as_ptr());
-            let gl = &self.gl;
-            for uniform in self.uniforms.values() {
-                uniform.load_into_program(gl);
-                //self.gl.Uniform1f(self.u_offset, self.u_offset_value);
-            }
+
             self.gl.UseProgram(self.id);
         }
     }
