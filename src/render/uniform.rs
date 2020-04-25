@@ -66,8 +66,11 @@ pub enum UniformRole {
     Point3D,
     Bool
 }
+
+#[derive(Debug)]
 pub enum UniformError {
-    BadType
+    BadType,
+    NotFoundInBoundShader(String)
 }
 
 pub struct Uniform {
@@ -95,16 +98,22 @@ impl Uniform {
             gl
         }
     }
-    pub fn from_description_and_program(uniform_description: &UniformDescription, program: &Program) -> Self {
+    pub fn from_description_and_program(uniform_description: &UniformDescription, program: &Program) -> Result<Self, String> {
         let name = uniform_description.get_name();
-        let loc = program.get_uniform_location(name);
-        Self::new (
-            loc.unwrap(), 
-            uniform_description.get__default_value_as_uniform_value(), 
+        let loc = match program.get_uniform_location(name) {
+            Ok(loc)=>loc,
+            Err(())=>{
+                return Err(name.to_string())
+            }
+        };
+        println!("uniform crate with name {} at loc {}", name, loc);
+        Ok(Self::new (
+            loc, 
+            uniform_description.get_default_value_as_uniform_value(), 
             name.clone(),
             uniform_description.get_role(), 
             program.gl.clone()
-        )
+        ))
     }
 
     pub fn load_into_program(&self) {

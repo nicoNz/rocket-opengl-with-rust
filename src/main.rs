@@ -98,7 +98,7 @@ fn main() {
     let mut app_runner =  WindowAppRunner::new( move |gl: &gl::Gl| {
         let camera = camera::Camera::from_position_and_look_at(&glm::vec3(-6.0,0.0, 5.0), &glm::vec3(0., 0., 0.));
 
-        let shader = match Shader::from_json(gl, &String::from("my_shader.json")) {
+        let shader = match Shader::from_json(gl, &String::from("myshader.json")) {
             Ok(shader) => shader,
             Err(e) => {
                 panic!("fail to create shader from json; Err : {}", e)
@@ -106,6 +106,7 @@ fn main() {
         };
 
         let key_map = shader.get_uniform_to_key_map();
+        println!("{} recorded uniforms", key_map.len());
         let vp = *key_map.get("VP").unwrap_or(&-1);
         if vp < 0 {
             panic!("VP not found is shader cause panic");

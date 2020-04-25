@@ -182,7 +182,7 @@ impl UniformDescription {
         }
     }
 
-    pub fn get__default_value_as_uniform_value(&self) -> UniformValue {
+    pub fn get_default_value_as_uniform_value(&self) -> UniformValue {
         match self {
             Self::F32(u)  => u.get_default_value(),
             Self::Mat4(u) => u.get_default_value()
@@ -233,9 +233,16 @@ impl UniformDescriptions {
     }
 
     pub fn instanciate_all(&self, program: &Program) -> Uniforms {
-        let res = Uniforms::new();
+        let mut res = Uniforms::new();
         for uniform_description in self.0.iter() {
-            let u = Uniform::from_description_and_program(&uniform_description, program);
+            match Uniform::from_description_and_program(&uniform_description, program) {
+                Ok(uniform) => {
+                    res.push(uniform);
+                },
+                Err(e)=>{
+                    panic!("couldn't add uniform; Err => {}", e)
+                }
+            }
         }
         res
     }
@@ -442,7 +449,10 @@ impl ShaderDescription {
                     }
                 )
             },
-            Err(e) => Err(ShaderDescriptionFromFileError::JsonParse)
+            Err(e) => {
+                println!("in ShaderDescription::From_file; from_file_name failt with error : {:?}", e);
+                Err(ShaderDescriptionFromFileError::JsonParse)
+            }
             
         }
 

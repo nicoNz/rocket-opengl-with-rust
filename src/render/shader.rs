@@ -39,6 +39,9 @@ impl Uniforms {
     pub fn get(&self, k: i32) -> Option<&Uniform>{
         self.collection.get(&k)
     }
+    pub fn len(&self) -> usize{
+        self.collection.len()
+    }
 }
 
 pub struct Shader {
@@ -69,18 +72,20 @@ impl Shader {
                 Self::from_shader_description(gl, shader_description)
             },
             Err(e) => {
-                Err(String::from(std::fmt::format(format_args!( "fail to create shader, {}", e))))
+                Err(String::from(std::fmt::format(format_args!( "fail to create shader; Error => {}", e))))
             }
         }
-
     }
+
     pub fn get_uniform_to_key_map(&self) -> Res {
         let mut  map: Res = Res::new();
+        println!("get_uniform_to_key_map, nElts => {}", self.uniforms.len());
         for (key, value) in self.uniforms.iter() {
             map.insert(value.name.clone(), *key);
         }
         map
     }
+    
     pub fn use_shader(&self) {
         self.program.use_program();
     }
@@ -91,17 +96,19 @@ impl Shader {
         }
     }
 
-
     pub fn register_uniform(&mut self, uniform_description: &UniformDescription) -> GLint {
         let name = uniform_description.get_name();
         let loc = self.program.get_uniform_location(name);
         match loc {
             Ok(loc)=> {
                 println!("name {} found at loc {}", name, loc);
-                if self.uniforms.push( 
-                    Uniform::from_description_and_program(uniform_description, &self.program)
-                ) >= 0 {
-                    println!("Error while trying to get location of {}, key {} already exist", name, loc)
+                match Uniform::from_description_and_program(uniform_description, &self.program) {
+                    Ok(uniform)=>{
+                        if self.uniforms.push( uniform ) < 0 {
+                            println!("Error while trying to get location of {}, key {} already exist", name, loc)
+                        }
+                    },
+                    Err(_) => return -1
                 }
                 loc
             },
@@ -116,8 +123,8 @@ impl Shader {
             shader_description.fragment_shader_file.as_ref() 
         ) {
             (
-                Some(fragment_shader_file), 
-                Some(vertex_shader_file)
+                Some(vertex_shader_file),
+                Some(fragment_shader_file) 
             ) => {
                 match (
                     get_cstr_from_path(&vertex_shader_file),
@@ -153,10 +160,13 @@ impl Shader {
                                     Err(e) => Err(e)
                                 }
                             },
-                            _ => Err(String::from("at least on shader source asn't found from file path"))   
+                            _ => Err(format!("\nat least one shader path couldn't be found \n VERTS : \n{:?} \n FRAGS : \n{:?}", vertex_source, fragment_source))   
                         }  
                     },
-                    _ => Err(String::from("at least on shader source asn't found from file path"))
+                    _ => {
+                        
+                        Err(format!("at least one shader path couldn't be found : checked the presence of {}, {}", vertex_shader_file, fragment_shader_file))
+                    }
                 }
             },
             _ => {
