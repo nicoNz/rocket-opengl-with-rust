@@ -31,6 +31,7 @@ use window_app::{
 
 use camera::Camera;
 use std::rc::Rc;
+use std::cell::RefCell;
 
 //use file::json_parser ;
 
@@ -58,7 +59,7 @@ impl WindowApp for App {
                         PARAM::X => camera.set_position_x(event.value),
                         PARAM::Y => camera.set_position_y(event.value)
                     };
-                    self.mesh.shader.set_uniform_value(
+                    self.mesh.shader.borrow_mut().set_uniform_value(
                         self.vp,
                         UniformValue::Mat4(camera.get_view_projection())
                     );
@@ -98,7 +99,7 @@ fn main() {
     let mut app_runner =  WindowAppRunner::new( move |gl: &gl::Gl| {
         let camera = camera::Camera::from_position_and_look_at(&glm::vec3(-6.0,0.0, 5.0), &glm::vec3(0., 0., 0.));
 
-        let shader = match Shader::from_json(gl, &String::from("myshader.json")) {
+        let mut shader = match Shader::from_json(gl, &String::from("myshader.json")) {
             Ok(shader) => shader,
             Err(e) => {
                 panic!("fail to create shader from json; Err : {}", e)
@@ -114,11 +115,12 @@ fn main() {
 
         shader.use_shader();
         shader.set_uniform_value(vp, UniformValue::Mat4(camera.get_view_projection()));
+     
     
         let mesh = match get_array_data(String::from("vertdata.json")) {
             Ok(ref descr) => {
                 // TODO => Mesh should use the shader description for double checking
-                Mesh::from_description(&gl, descr, &Rc::new(shader))
+                Mesh::from_description(&gl, descr, &Rc::new(RefCell::new(shader)))
             },
             Err(e) => {
                 panic!("fail to get buffers");
@@ -127,7 +129,7 @@ fn main() {
 
         Box::new(
             App {
-                camera : Camera::from_position_and_look_at(&glm::vec3(-6.0,0.0, 5.0), &glm::vec3(0., 0., 0.)),
+                camera,
                 receiver,
                 mesh,
                 vp

@@ -15,9 +15,10 @@ use crate::file::shader_description_parser::UniformDescription;
 use crate::render::program::Program;
 use crate::render::raw_shader::RawShader;
 use std::collections::HashMap;
+use std::cell::RefCell;
 //use std::iter::
 pub struct Uniforms {
-    collection: HashMap<GLint, Uniform>,
+    collection: HashMap<GLint, RefCell<Uniform>>,
     key_gen: i32
 }
 
@@ -28,16 +29,21 @@ impl Uniforms {
             key_gen : 0
         }
     }
-    pub fn iter(&self) -> std::collections::hash_map::Iter<i32, Uniform> {
+    pub fn iter(&self) -> std::collections::hash_map::Iter<i32, RefCell<Uniform>> {
         self.collection.iter()
     }
     pub fn push(&mut self, uniform: Uniform) -> i32 {
         self.key_gen += 1;
-        self.collection.insert(self.key_gen, uniform);
+        self.collection.insert(self.key_gen, RefCell::from( uniform));
         self.key_gen
     }
-    pub fn get(&self, k: i32) -> Option<&Uniform>{
+
+    pub fn get(&self, k: i32) -> Option<&RefCell<Uniform>> {
         self.collection.get(&k)
+    }
+
+    pub fn get_mut(&mut self, k: i32) -> Option<&mut RefCell<Uniform>> {
+        self.collection.get_mut(&k)
     }
     pub fn len(&self) -> usize{
         self.collection.len()
@@ -81,7 +87,7 @@ impl Shader {
         let mut  map: Res = Res::new();
         println!("get_uniform_to_key_map, nElts => {}", self.uniforms.len());
         for (key, value) in self.uniforms.iter() {
-            map.insert(value.name.clone(), *key);
+            map.insert(value.borrow().name.clone(), *key);
         }
         map
     }
@@ -90,9 +96,12 @@ impl Shader {
         self.program.use_program();
     }
 
-    pub fn set_uniform_value(&self, i: i32, v: UniformValue) {
-        if let Some(uniform) = self.uniforms.get(i) {
-            uniform.load_into_program()
+    pub fn set_uniform_value(&mut self, i: i32, v: UniformValue) {
+        if let Some(uniform) = self.uniforms.get_mut(i) {
+            uniform.borrow_mut().set_value(v);
+            //uniform.load_into_program()
+        } else {
+            println!("fail to load unif at loc {}", i);
         }
     }
 

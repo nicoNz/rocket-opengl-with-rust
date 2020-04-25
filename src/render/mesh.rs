@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use crate::render::vbo::{
     Vbo,
     VboF32,
@@ -46,12 +47,12 @@ pub struct Mesh {
     gl: gl::Gl,
     draw_mode: gl::types::GLuint,
     n_verts: i32,
-    pub shader: Rc<Shader>
+    pub shader: Rc<RefCell<Shader>>
 } 
 
 impl Mesh {
 
-    pub fn new(gl: &gl::Gl, shader: &Rc<Shader>) -> Self {
+    pub fn new(gl: &gl::Gl, shader: &Rc<RefCell<Shader>>) -> Self {
         let buffers: Vec<VboWithAssiciatedLoc> = Vec::new();
         Self {
             gl : gl.clone(),
@@ -63,7 +64,7 @@ impl Mesh {
         }
     }
 
-    pub fn from_description(gl: &gl::Gl, description: &MeshDescription, shader: &Rc<Shader>) -> Self {
+    pub fn from_description(gl: &gl::Gl, description: &MeshDescription, shader: &Rc<RefCell<Shader>>) -> Self {
         //let vbos: Vec<VboWithAssiciatedLoc> = Vec::new();
         let mut this = Self::new(gl, shader);
 
@@ -98,7 +99,7 @@ impl Mesh {
         
                 let vbo = boxed_vbo.as_ref();
                 
-                match self.shader.program.get_attribute_location(attribute_name) {
+                match self.shader.borrow().program.get_attribute_location(attribute_name) {
                     Ok(loc) => {
                         if loc == 0 {
                            self.n_verts =  vbo.get_n_elements() as i32;
@@ -119,7 +120,7 @@ impl Mesh {
     }
 
     pub fn draw(&self) {
-        self.shader.use_shader();
+        self.shader.borrow_mut().use_shader();
         self.vao.bind();
         unsafe {
             self.gl.DrawArrays(
