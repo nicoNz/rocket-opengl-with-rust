@@ -5,9 +5,10 @@ in VS_OUTPUT {
 } IN;
 
 out vec4 Color;
+uniform float luma;
 
 //
 void main()
 {
-    Color = vec4(IN.Color, 1.0f);
+    Color = vec4(IN.Color*luma, 1.0f);
 }

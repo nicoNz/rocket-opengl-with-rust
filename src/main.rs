@@ -107,14 +107,18 @@ fn main() {
         };
 
         let key_map = shader.get_uniform_to_key_map();
-        println!("{} recorded uniforms", key_map.len());
         let vp = *key_map.get("VP").unwrap_or(&-1);
         if vp < 0 {
             panic!("VP not found is shader cause panic");
         }
+        let luma = *key_map.get("luma").unwrap_or(&-1);
+        if luma < 0 {
+            panic!("luma not found is shader cause panic");
+        }
 
         shader.use_shader();
         shader.set_uniform_value(vp, UniformValue::Mat4(camera.get_view_projection()));
+        shader.set_uniform_value(luma, UniformValue::F32(0.7));
      
     
         let mesh = match get_array_data(String::from("vertdata.json")) {

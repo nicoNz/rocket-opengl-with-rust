@@ -8,6 +8,15 @@
             "type" : "mat4",
             "role" : "VP",
             "isParam" : false
+        },
+        {
+            "name" : "luma",
+            "type" : "float32",
+            "role" : "VP",
+            "isParam" : false,
+            "defaultValue" : 0.7,
+            "min" : 0,
+            "max" : 1
         }
     ]
 }

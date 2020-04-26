@@ -138,8 +138,25 @@ impl ParameterContent {
 
 pub struct Parameter {
     label: String,
-    content: ParameterContent,
+    pub content: ParameterContent,
     id: Option<i16>,
+}
+
+pub struct ParameterRef {
+    inner: Weak<RefCell<Parameter>>
+}
+impl ParameterRef {
+    pub fn set(&self, v: CallbackArgument) {
+        
+        if let Some(p) = Weak::upgrade(&self.inner) {
+            p.borrow_mut().set_value(v);
+        }
+    }
+    pub fn register_callback(&self, f: CallbackSignature) {
+        if let Some(p) = Weak::upgrade(&self.inner) {
+            p.borrow_mut().register_callback(f);
+        }
+    }
 }
 
 impl Parameter {
@@ -170,29 +187,66 @@ impl Parameter {
 type Parameters = HashMap<i16, Rc<RefCell<Parameter>>>;
 
 
-struct ParametersPool {
+struct InnerParametersPool {
     count: i16,
-    pub parameters: RefCell<Parameters>
+    pub parameters: Parameters
 }
+
+struct ParametersPool {
+    inner: Rc<RefCell<InnerParametersPool>>
+}
+
+impl Deref for ParametersPool {
+    type Target = RefCell<InnerParametersPool>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+
 
 impl ParametersPool {
     pub fn new () -> Self {
         Self {
-            count : 0,
-            parameters :  RefCell::new (HashMap::new())
+            inner : Rc::new(RefCell::new(
+                InnerParametersPool {
+                    count : 0,
+                    parameters : Parameters::new()
+                }
+            )) 
         }
     }
+    pub fn get_weak(&self, index: i16) -> Option<ParameterRef>{
+        match self.inner.borrow_mut().get_mut(index) {
+            Some(p_ref)=>{
+                Some(ParameterRef {
+                    inner : p_ref
+                })
+            },
+            None=>None
+        }
+        
+        
+    }
+    pub fn push(&self, parameter: Parameter) -> i16 {
+        self.inner.borrow_mut().push(parameter)
+    }
+}
+
+impl InnerParametersPool {
+
     pub fn push (&mut self, mut p: Parameter) -> i16 {
         self.count += 1;
         let count = self.count;
         p.set_id(Some(count));
-        self.parameters.get_mut().insert(count, Rc::new(RefCell::new(p)));
+        self.parameters.insert(count, Rc::new(RefCell::new(p)));
         self.count = count;
         count
     }
 
     pub fn get_mut (&mut self, k: i16) -> Option<Weak<RefCell<Parameter>>> {
-        let v = self.parameters.get_mut().get(&k);
+        let v = self.parameters.get(&k);
         match v {
             Some(v) => {
                 Some(Rc::downgrade(v))
@@ -203,9 +257,6 @@ impl ParametersPool {
 }
 
 
-pub fn add(a: i32, b: i32) -> i32 {
-    a + b
-}
 
 
 pub trait InnerListenner {
@@ -228,6 +279,7 @@ impl<T: 'static +  InnerListenner> Listenner<T> {
 //Parameter::new(String::from("my P1"), 2)
     pub fn listen(&mut self, p: &mut Parameter) {
         let delegate = Rc::downgrade(self);
+        
         match &p.content {
             ParameterContent::F32(v) => {
                 let id = p.register_callback( CallbackSignature::F32 (Box::new( move |v| {
@@ -270,6 +322,16 @@ impl<T: 'static +  InnerListenner> Listenner<T> {
             }
         }
 
+    }
+    pub fn listen_weak(&mut self, p: &ParameterRef) {
+        match Weak::upgrade(&p.inner) {
+            Some(ref mut p)=>{
+                self.listen(&mut p.borrow_mut());
+            }
+            None => println!("fail to upgrade weak parameter")
+
+            
+        }
     }
 }
 
@@ -323,12 +385,12 @@ impl InnerListenner for Vec3Value {
     }
 }
 
-fn get_borrow(parameters: RefCell<ParametersPool>, i: i16) -> std::rc::Weak<RefCell<Parameter>> {
-    match parameters.borrow_mut().get_mut(i) {
-        Some(v) => v,
-        None => panic!("bad index")
-    }
-}
+// fn get_borrow(parameters: RefCell<ParametersPool>, i: i16) -> std::rc::Weak<RefCell<Parameter>> {
+//     match parameters.borrow_mut().get_mut(i) {
+//         Some(v) => v,
+//         None => panic!("bad index")
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
@@ -339,17 +401,17 @@ mod tests {
     fn self_struct_test() {
         
         // 1 - create parameters pool
-        let parameters: Rc<RefCell<ParametersPool>> = Rc::new( RefCell::new(ParametersPool::new())) ;
+        let parameters = ParametersPool::new( ) ;
 
         // 2 - create some params ton listen to
-        parameters.borrow_mut().push(
+        parameters.push(
             Parameter::new(
                 String::from("my P1"), 
                 ParameterContent::F32(ParameterF32::new())
             )
         );
 
-        parameters.borrow_mut().push(
+        parameters.push(
             Parameter::new(
                 String::from("my P2"), 
                 ParameterContent::Vec3(ParameterVec3::new())
@@ -357,12 +419,12 @@ mod tests {
         );
         
         // 3 - get some references to the created paramters
-        let subr1 = match parameters.borrow_mut().get_mut(1) {
+        let subr1 = match parameters.get_weak(1) {
             Some(v) => v,
             None => panic!("bad index")
         };
 
-        let subr2 = match parameters.borrow_mut().get_mut(2) {
+        let subr2 = match parameters.get_weak(2) {
             Some(v) => v,
             None => panic!("bad index")
         };
@@ -373,38 +435,14 @@ mod tests {
         
 
         // 5 - bind the receiver to the parameter
-        match Weak::upgrade(&subr1) {
-            Some(subr)=> {
-                listenner1.listen(&mut subr.borrow_mut());
-            },
-            None => {
-                println!("fail to register");
-            }
-        };
-        match Weak::upgrade(&subr2) {
-            Some(subr)=> {
-                listenner2.listen(&mut subr.borrow_mut());
-            },
-            None => {
-                println!("fail to register");
-            }
-        };
+        listenner1.listen_weak(&subr1);
+        listenner2.listen_weak(&subr2);
 
 
         // 6 - send events by stimulating our parameters
-        match Weak::upgrade(&subr1) {
-            Some(subr)=> {
-                subr.borrow_mut().set_value(CallbackArgument::F32(0.4));
-            },
-            None => {}
-        };
-        match Weak::upgrade(&subr2) {
-            Some(subr)=> {
-                subr.borrow_mut().set_value(CallbackArgument::Vec3(glm::vec3(0.3, 0.3, 0.3)));
-            },
-            None => {}
-        };
-
+        
+        subr1.set(CallbackArgument::F32(0.4));
+        subr2.set(CallbackArgument::Vec3(glm::vec3(0.3, 0.3, 0.3)));
         assert_eq!(listenner1.borrow().value, 0.4);
         assert_eq!(listenner2.borrow().value, glm::vec3(0.3, 0.3, 0.3));
     }

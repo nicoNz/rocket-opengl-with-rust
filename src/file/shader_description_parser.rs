@@ -5,7 +5,6 @@ use crate::render::uniform::UniformRole;
 use crate::render::uniform::Uniform;
 use crate::render::shader::Uniforms;
 use crate::render::program::Program;
-use std::collections::HashMap;
 use crate::file::json_parser::{from_file_name};
 use json::{
     JsonValue
