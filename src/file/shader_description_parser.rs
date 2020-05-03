@@ -12,8 +12,7 @@ use json::{
 
 
 #[derive(Debug, Clone)]
-pub 
-enum ShaderDescriptionFromFileError {
+pub enum ShaderDescriptionFromFileError {
     ShaderNameNotFound,
     UniformNameNotFound,
     FragmentShaderNotFound,
