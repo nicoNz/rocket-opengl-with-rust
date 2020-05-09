@@ -9,7 +9,6 @@ use crate::network::http_receiver::{
     TARGET
 };
 use crate::window_app::{
-    WindowAppRunner,
     WindowApp
 };
 
@@ -28,7 +27,6 @@ pub struct App {
     camera: Camera,
     receiver: std::sync::mpsc::Receiver<network::http_receiver::Msg>,
     vp: GLint
-    //program: Option<Box<Program>>
 }
 
 impl App {
@@ -70,7 +68,6 @@ impl App {
         };
 
         App {
-            
             camera,
             receiver,
             mesh,
@@ -99,28 +96,18 @@ impl WindowApp for App {
                     );
                 }
                 TARGET::MODEL => {
-                    // match &mut self.mesh.program {
-                    //     Some(program)=>program.set_offset(event.value),
-                    //     _ => println!("err")
-                    // }
                 }
             }
         }
     }
 
     fn draw(&self) {
-
         self.mesh.draw();
     }
     fn on_window_event(&mut self, event: &sdl2::event::Event) {
         
         match event {
             sdl2::event::Event::MouseMotion {x, .. } => {
-                // let v = *x as f32;
-                // match &mut self.mesh.program {
-                //     Some(program)=>program.set_offset(v),
-                //     _ => println!("err")
-                // }
             },
             _ => {}
         }

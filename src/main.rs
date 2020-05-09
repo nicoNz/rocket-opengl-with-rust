@@ -15,7 +15,7 @@ pub mod parameter;
 pub mod file;
 pub mod apps;
 
-pub use apps::crash_test::App; 
+pub use apps::checker::App; 
 
 use render::mesh::Mesh;
 use crate::render::shader::Shader;

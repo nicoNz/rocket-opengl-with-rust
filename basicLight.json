@@ -1,0 +1,13 @@
+{
+    "name" : "basic light",
+    "frag" : "basicLight.frag",
+    "vert" : "basicLight.vert",
+    "uniforms" : [
+        {
+            "name" : "VP",
+            "type" : "mat4",
+            "role" : "VP",
+            "isParam" : false
+        }
+    ]
+}

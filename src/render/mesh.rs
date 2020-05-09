@@ -47,7 +47,8 @@ pub struct Mesh {
     gl: gl::Gl,
     draw_mode: gl::types::GLuint,
     n_verts: i32,
-    pub shader: Rc<RefCell<Shader>>
+    pub shader: Rc<RefCell<Shader>>,
+    ibo: Option<VboU8>
 } 
 
 impl Mesh {
@@ -60,7 +61,8 @@ impl Mesh {
             vbos : buffers,
             draw_mode : gl::TRIANGLES,
             n_verts : 0,
-            shader: shader.clone()
+            shader: shader.clone(),
+            ibo: None
         }
     }
 
@@ -83,6 +85,10 @@ impl Mesh {
         return this;
     }
 
+    pub fn set_indicies(&mut self, ibo:  VboU8) {
+        self.ibo = Some(ibo);
+    }
+
     pub fn set_buffer_at_location(&mut self, boxed_vbo:  Box<dyn Vbo>,loc: gl::types::GLuint) {
 
         let vbo = boxed_vbo.as_ref();
@@ -96,39 +102,49 @@ impl Mesh {
 
     pub fn set_buffer_at_named_location(&mut self, boxed_vbo:  Box<dyn Vbo>, attribute_name: &String) {
        
+        let vbo = boxed_vbo.as_ref();
         
-                let vbo = boxed_vbo.as_ref();
-                
-                match self.shader.borrow().program.get_attribute_location(attribute_name) {
-                    Ok(loc) => {
-                        if loc == 0 {
-                           self.n_verts =  vbo.get_n_elements() as i32;
-                        }
-                        self.vao.attach_vbo(vbo, loc as u32);
-                        self.vbos.push((
-                            boxed_vbo, 
-                            loc as usize, 
-                            Some(attribute_name.clone())
-                        ));
-                    },
-                    Err(()) => {
-                        panic!("Panic as no implementation was provide if the attribute location was not found \nfail to find {}", attribute_name);
-                    }
+        match self.shader.borrow().program.get_attribute_location(attribute_name) {
+            Ok(loc) => {
+                if loc == 0 {
+                    self.n_verts =  vbo.get_n_elements() as i32;
                 }
-            
-        
+                self.vao.attach_vbo(vbo, loc as u32);
+                self.vbos.push((
+                    boxed_vbo, 
+                    loc as usize, 
+                    Some(attribute_name.clone())
+                ));
+            },
+            Err(()) => {
+                panic!("Panic as no implementation was provide if the attribute location was not found \nfail to find {}", attribute_name);
+            }
+        }   
     }
 
     pub fn draw(&self) {
         self.shader.borrow_mut().use_shader();
         self.vao.bind();
-        unsafe {
-            self.gl.DrawArrays(
-                self.draw_mode, // mode
-                0,             // starting index in the enabled arrays
-                self.n_verts             // number of indices to be rendered
-            );
+        if let Some(ibo) = &self.ibo {
+            unsafe {
+                self.gl.BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ibo.id);
+                self.gl.DrawElements(
+                    self.draw_mode, // mode
+                    ibo.get_n_elements() as i32,             // number of indices to be rendered,
+                    gl::UNSIGNED_BYTE, // index type
+                    ::std::ptr::null()
+                );
+            }
+        } else {
+            unsafe {
+                self.gl.DrawArrays(
+                    self.draw_mode, // mode
+                    0,             // starting index in the enabled arrays
+                    self.n_verts             // number of indices to be rendered
+                );
+            }
         }
+
     }
 }
 
