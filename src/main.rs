@@ -17,36 +17,13 @@ pub mod apps;
 
 pub use apps::checker::App; 
 
-use render::mesh::Mesh;
-use crate::render::shader::Shader;
-use crate::render::uniform::UniformValue;
-
-use network::http_receiver::{
-    launch_http,
-    PARAM,
-    TARGET
-};
 use window_app::{
     WindowAppRunner,
-    WindowApp
 };
-
-use camera::Camera;
-use std::rc::Rc;
-use std::cell::RefCell;
-
-//use file::json_parser ;
-
-
-use gl::types::GLint;
-use file::vbo_description_parser::get_array_data;
 
 fn main() {
 
-    
     let mut app_runner =  WindowAppRunner::new( move |gl: &gl::Gl| {
-
-
         Box::new(
             App::App::new(&gl) 
         )
