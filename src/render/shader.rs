@@ -96,6 +96,7 @@ impl Shader {
     }
 
     pub fn set_uniform_value(&mut self, i: i32, v: UniformValue) {
+        self.use_shader();
         if let Some(ref mut uniform) = self.uniforms.get_mut(i) {
             uniform.set_value(v);
             //uniform.load_into_program()

@@ -27,19 +27,23 @@ impl UniformData {
 #[derive(Debug, PartialEq)]
 pub enum UniformValue {
     F32(f32),
+    Vec3(glm::Vec3),
     Mat4(glm::Mat4)
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum UniformType {
     F32,
-    Mat4
+    Mat4,
+    Vec3
 }
 impl UniformType {
     pub fn from_string(type_name: &String) -> Result<Self, String> {
         match type_name.as_str() {
             "float32" => Ok(Self::F32),
             "mat4" => Ok(Self::Mat4),
+            "vec3" => Ok(Self::Vec3),
+
             _ => Err( format!("could no unform type for {}", type_name))
         }
     }
@@ -47,7 +51,8 @@ impl UniformType {
     pub fn to_string(&self) -> String {
         match self {
             Self::F32 => String::from("float32"),
-            Self::Mat4 => String::from("mat4")
+            Self::Mat4 => String::from("mat4"),
+            Self::Vec3 => String::from("vec3")
         }
     }
 }
@@ -145,6 +150,11 @@ impl UniformValue {
             UniformValue::F32(v) => {
                 unsafe {
                     gl.Uniform1f(loc, *v);
+                }
+            }
+            UniformValue::Vec3(v) => {
+                unsafe {
+                    gl.Uniform3fv(loc, 1,  (*v).as_ptr());
                 }
             }
         }

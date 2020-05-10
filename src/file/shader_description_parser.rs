@@ -89,6 +89,38 @@ impl UniformDescriptionF32 {
 }
 
 #[derive(Clone)]
+pub struct UniformDescriptionVec3 {
+    name: String,
+    uniform_type: UniformType,
+    is_param: bool,
+    role: UniformRole,
+    default_value: glm::Vec3,
+    min: glm::Vec3,
+    max: glm::Vec3
+}
+
+impl UniformDescriptionVec3 {
+    pub fn new (
+        name: String,
+        is_param: bool,
+        default_value: glm::Vec3,
+        role: UniformRole,
+        min: glm::Vec3,
+        max: glm::Vec3
+    ) -> Self {
+        Self {
+            name,
+            uniform_type: UniformType::F32,
+            is_param,
+            default_value,
+            min,
+            max,
+            role
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct UniformDescriptionMat4 {
     name: String,
     uniform_type: UniformType,
@@ -143,6 +175,28 @@ impl InnerUniformDescription for UniformDescriptionF32 {
     }
 }
 
+
+impl InnerUniformDescription for UniformDescriptionVec3 {
+    fn get_name(&self) -> &String {
+        &self.name
+    }
+    fn get_uniform_type(&self) -> UniformType {
+        UniformType::F32
+    }
+    fn is_param(&self) -> bool {
+        self.is_param
+    }
+    fn get_default_value(&self) -> UniformValue {
+        UniformValue::Vec3(self.default_value)
+    }
+    fn get_min(&self) -> Option<UniformValue> {
+        Some(UniformValue::Vec3(self.min))
+    }
+    fn get_max(&self) -> Option<UniformValue> {
+        Some(UniformValue::Vec3(self.max))
+    }
+}
+
 impl InnerUniformDescription for UniformDescriptionMat4 {
     fn get_name(&self) -> &String {
         &self.name
@@ -168,7 +222,8 @@ impl InnerUniformDescription for UniformDescriptionMat4 {
 #[derive(Clone)]
 pub enum UniformDescription {
     F32(UniformDescriptionF32),
-    Mat4(UniformDescriptionMat4)
+    Mat4(UniformDescriptionMat4),
+    Vec3(UniformDescriptionVec3)
 }
 
 
@@ -176,6 +231,7 @@ impl UniformDescription {
     pub fn get_name(&self) -> &String {
         match self {
             Self::F32(u)  => &u.name,
+            Self::Vec3(u) => &u.name,
             Self::Mat4(u) => &u.name,
         }
     }
@@ -183,6 +239,7 @@ impl UniformDescription {
     pub fn get_default_value_as_uniform_value(&self) -> UniformValue {
         match self {
             Self::F32(u)  => u.get_default_value(),
+            Self::Vec3(u) => u.get_default_value(),
             Self::Mat4(u) => u.get_default_value()
         }
     }
@@ -190,6 +247,7 @@ impl UniformDescription {
     pub fn get_role(&self) -> UniformRole {
         match self {
             Self::F32(u)  => u.role,
+            Self::Vec3(u)  => u.role,
             Self::Mat4(u) => u.role
         }
     }
@@ -201,6 +259,7 @@ impl UniformDescription {
     pub fn get_is_param(&self) -> bool {
         match self {
             Self::F32(u)  => u.is_param(),
+            Self::Vec3(u) => u.is_param(),
             Self::Mat4(u) => u.is_param()
         }
     }
@@ -350,13 +409,33 @@ fn get_is_param(json: &JsonValue) -> Result<bool, ShaderDescriptionFromFileError
         None => Err(ShaderDescriptionFromFileError::TypeNotFoundOrNotValid)
     } 
 }
-
 fn get_f32_from_field_name(json: &JsonValue, name: &str) -> Result<f32, ShaderDescriptionFromFileError> {
-    
     match json[name].as_f32() {
         Some(num) => Ok(num),
         _ => Err(ShaderDescriptionFromFileError::BadTypeFormValue)
     }
+}
+
+fn get_vec3_from_field_name(json: &JsonValue, name: &str) -> Result<glm::Vec3, ShaderDescriptionFromFileError> {
+    let mut x: f32 = 0.;
+    let mut y: f32 = 0.;
+    let mut z: f32 = 0.;
+    for (key, value) in json[name].entries() {
+        match key {
+            "x" => if let Some(v) = value.as_f32() {
+                x = v;
+            },
+            "y" => if let Some(v) = value.as_f32() {
+                y = v;
+            },
+            "z" => if let Some(v) = value.as_f32() {
+                z = v;
+            },
+            _ => {}
+        }
+    }
+    Ok(glm::vec3(x, y, z))
+
 }
 
 fn get_uniform(json: &JsonValue) -> Result<UniformDescription, ShaderDescriptionFromFileError> {
@@ -372,6 +451,21 @@ fn get_uniform(json: &JsonValue) -> Result<UniformDescription, ShaderDescription
                         UniformRole::Float,
                         get_f32_from_field_name(json, "min")?,
                         get_f32_from_field_name(json, "max")?,
+
+                    )
+                )
+            )
+        },
+        UniformType::Vec3 => {
+            return Ok (
+                UniformDescription::Vec3(
+                    UniformDescriptionVec3::new(
+                        get_uniform_name(json)?,
+                        get_is_param(json)?,
+                        get_vec3_from_field_name(json, "defaultValue")?,
+                        UniformRole::Float,
+                        get_vec3_from_field_name(json, "min")?,
+                        get_vec3_from_field_name(json, "max")?,
 
                     )
                 )

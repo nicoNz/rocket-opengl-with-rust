@@ -1,7 +1,7 @@
 {
-    "name" : "basic light",
-    "frag" : "basicLight.frag",
-    "vert" : "basicLight.vert",
+    "name" : "checker",
+    "frag" : "checker.frag",
+    "vert" : "checker.vert",
     "uniforms" : [
         {
             "name" : "VP",
