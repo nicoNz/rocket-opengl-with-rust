@@ -9,7 +9,7 @@ edition = "2018"
 [dependencies]
 sdl2 = { version = "0.33.0", features = ["bundled", "static-link"] }
 gl = { path = "gl_lib/gl" }
-rocket = "0.4.4"
+rocket = "0.4.7"
 nalgebra-glm = "0.3"
 json = "0.12.4"
 
